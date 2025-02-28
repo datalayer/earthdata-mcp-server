@@ -50,7 +50,7 @@ The server currently offers 2 tools:
   - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
 - Returns: List of dataset abstracts.
 
-2. `search_earth_data_granules`
+2. `search_earth_datagranules`
 - Search for data granules on NASA Earthdata.
 - Input:
   - short_name (str): Short name of the dataset.
