@@ -15,7 +15,14 @@
 
 Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server implementation that provides tools to interact with [NASA Earth Data](https://www.earthdata.nasa.gov/). It enables efficient dataset discovery and retrieval for Geospatial analysis.
 
-<div style="position: relative; padding-bottom: 56.25%; height: 0;"><iframe src="https://www.loom.com/embed/c2b5b05f548d4f1492d5c107f0c48dbc?sid=eef010ce-6be8-4a1b-b3ba-5c2e6a5bf8d0" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>
+<div>
+  <a href="https://www.loom.com/share/c2b5b05f548d4f1492d5c107f0c48dbc">
+    <p>Analyzing Sea Level Rise with AI-Powered Geospatial Tools and Jupyter - Watch Video</p>
+  </a>
+  <a href="https://www.loom.com/share/c2b5b05f548d4f1492d5c107f0c48dbc">
+    <img style="max-width:100%;" src="https://cdn.loom.com/sessions/thumbnails/c2b5b05f548d4f1492d5c107f0c48dbc-598a84f02de7e74e-full-play.gif">
+  </a>
+</div>
 
 ## Usage with Claude Desktop
 
