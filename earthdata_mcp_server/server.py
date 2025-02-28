@@ -57,7 +57,7 @@ def search_earth_datasets(search_keywords: str, count: int, temporal:tuple, boun
     return datasets_info
 
 @mcp.tool()
-def search_earth_data_granules(short_name: str, count:int, temporal:tuple, bounding_box:tuple) -> list:
+def search_earth_datagranules(short_name: str, count:int, temporal:tuple, bounding_box:tuple) -> list:
     """
     Search for data granules on NASA Earthdata.
     
@@ -83,9 +83,9 @@ def search_earth_data_granules(short_name: str, count:int, temporal:tuple, bound
     if bounding_box and len(bounding_box) == 4:
         search_params["bounding_box"] = bounding_box
 
-    data_granules = earthaccess.search_data(**search_params)
+    datagranules = earthaccess.search_data(**search_params)
     
-    return data_granules
+    return datagranules
 
 if __name__ == "__main__":
     # Initialize and run the server
