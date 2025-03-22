@@ -57,12 +57,28 @@ To use this with Claude Desktop, add the following to your `claude_desktop_confi
 }
 ```
 
-## Prompt
+> IMPORTANT
+>
+> You will also need the Jupyter MCP Server as documented on https://github.com/datalayer/jupyter-mcp-server.
 
-You can use a prompt like eg.
+If you are using Linux, start Claude with the following command.
+
+```bash
+make claude-linux
+```
+
+Start JupyterLab.
+
+```bash
+make jupyterlab
+```
+
+You can now prompt via Claude.
 
 ```
-Create an analysis about sea level rise from 2000 to 2025.
+Create an analysis about sea level rise from 2000 to 2025 in my jupyter notebook with real downloaded data.
+
+Before that, install the needed python libraries you will need for the analysis.
 ```
 
 ## Tools

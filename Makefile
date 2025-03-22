@@ -41,6 +41,12 @@ push-docker:
 pull-docker:
 	docker push datalayer/earthdata-mcp-server:latest
 
+claude-linux:
+	NIXPKGS_ALLOW_UNFREE=1 nix run github:k3d3/claude-desktop-linux-flake \
+		--impure \
+		--extra-experimental-features flakes \
+		--extra-experimental-features nix-command
+
 jupyterlab:
 	pip uninstall -y pycrdt datalayer_pycrdt
 	pip install datalayer_pycrdt

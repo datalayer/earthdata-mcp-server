@@ -42,18 +42,19 @@ def search_earth_datasets(search_keywords: str, count: int, temporal:tuple, boun
         search_params["bounding_box"] = bounding_box
 
     datasets = earthaccess.search_datasets(**search_params)
-    
+
     datasets_info = [
-        {'Title': dataset.get_umm("EntryTitle"), 
-         'ShortName': dataset.get_umm("ShortName"), 
-         'Abstract': dataset.abstract(), 
-         "Data Type": dataset.data_type(), 
-         "DOI": dataset.get_umm("DOI"),
-         "LandingPage": dataset.landing_page(),
-         "DatasetViz": dataset._filter_related_links("GET RELATED VISUALIZATION"),
-         "DatasetURL": dataset._filter_related_links("GET DATA"),
+        {
+            "Title": dataset.get_umm("EntryTitle"), 
+            "ShortName": dataset.get_umm("ShortName"), 
+            "Abstract": dataset.abstract(), 
+            "Data Type": dataset.data_type(), 
+            "DOI": dataset.get_umm("DOI"),
+            "LandingPage": dataset.landing_page(),
+            "DatasetViz": dataset._filter_related_links("GET RELATED VISUALIZATION"),
+            "DatasetURL": dataset._filter_related_links("GET DATA"),
          } for dataset in datasets]
-        
+
     return datasets_info
 
 
