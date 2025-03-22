@@ -37,3 +37,15 @@ build-docker:
 push-docker:
 	docker push datalayer/earthdata-mcp-server:${VERSION}
 	docker push datalayer/earthdata-mcp-server:latest
+
+pull-docker:
+	docker push datalayer/earthdata-mcp-server:latest
+
+jupyterlab:
+	pip uninstall -y pycrdt datalayer_pycrdt
+	pip install datalayer_pycrdt
+	jupyter lab \
+		--port 8888 \
+		--ip 0.0.0.0 \
+		--ServerApp.root_dir ./dev/content \
+		--IdentityProvider.token MY_TOKEN

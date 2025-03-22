@@ -7,7 +7,7 @@ import logging
 from mcp.server.fastmcp import FastMCP
 import earthaccess
 
-# Initialize FastMCP server
+
 mcp = FastMCP("earthdata")
 
 
@@ -56,6 +56,7 @@ def search_earth_datasets(search_keywords: str, count: int, temporal:tuple, boun
         
     return datasets_info
 
+
 @mcp.tool()
 def search_earth_datagranules(short_name: str, count:int, temporal:tuple, bounding_box:tuple) -> list:
     """
@@ -87,6 +88,6 @@ def search_earth_datagranules(short_name: str, count:int, temporal:tuple, boundi
     
     return datagranules
 
+
 if __name__ == "__main__":
-    # Initialize and run the server
     mcp.run(transport='stdio')
