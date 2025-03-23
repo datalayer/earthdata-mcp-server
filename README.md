@@ -76,9 +76,8 @@ make jupyterlab
 You can now prompt via Claude.
 
 ```
-Create an analysis about sea level rise from 2000 to 2025 in my jupyter notebook with real downloaded data.
-
-Before that, install the needed python libraries you will need for the analysis.
+create an analysis about sea level rise from 2000 to 2025 in my jupyter notebook with real downloaded data
+before that, install the needed python libraries you will need for the analysis
 ```
 
 ## Tools
