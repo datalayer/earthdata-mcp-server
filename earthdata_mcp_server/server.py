@@ -5,6 +5,7 @@
 import logging
 
 from mcp.server.fastmcp import FastMCP
+
 import earthaccess
 
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @mcp.tool()
-def search_earth_datasets(search_keywords: str, count: int, temporal:tuple, bounding_box:tuple) -> list:
+def search_earth_datasets(search_keywords: str, count: int, temporal: tuple | None, bounding_box: tuple | None) -> list:
     """
     Search for datasets on NASA Earthdata.
     
@@ -29,7 +30,7 @@ def search_earth_datasets(search_keywords: str, count: int, temporal:tuple, boun
     list
         List of dataset abstracts.
     """
-    
+
     search_params = {
         "keyword": search_keywords,
         "count": count,
@@ -59,7 +60,7 @@ def search_earth_datasets(search_keywords: str, count: int, temporal:tuple, boun
 
 
 @mcp.tool()
-def search_earth_datagranules(short_name: str, count:int, temporal:tuple, bounding_box:tuple) -> list:
+def search_earth_datagranules(short_name: str, count: int, temporal: tuple | None, bounding_box: tuple | None) -> list:
     """
     Search for data granules on NASA Earthdata.
     

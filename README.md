@@ -27,8 +27,8 @@ Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.
 ## Docker Image
 
 ```bash
-# or run `make build-docker`
-docker build -t datalayer/earthdata-mcp-server .
+# or run `docker build -t datalayer/earthdata-mcp-server .`
+make build-docker
 ```
 
 If you prefer, you can pull the prebuilt images.
