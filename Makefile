@@ -55,3 +55,11 @@ jupyterlab:
 		--ip 0.0.0.0 \
 		--ServerApp.root_dir ./dev/content \
 		--IdentityProvider.token MY_TOKEN
+
+publish-pypi: # publish the pypi package
+	git clean -fdx && \
+		python -m build
+	@exec echo
+	@exec echo twine upload ./dist/*-py3-none-any.whl
+	@exec echo
+	@exec echo https://pypi.org/project/earthdata-mcp-server/#history
