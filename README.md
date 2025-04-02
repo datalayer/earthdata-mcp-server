@@ -24,9 +24,22 @@ Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.
   </a>
 </div>
 
-## Usage with Claude Desktop
+## Docker Image
 
-To use this with Claude Desktop, add the following to your claude_desktop_config.json:
+```bash
+# or run `docker build -t datalayer/earthdata-mcp-server .`
+make build-docker
+```
+
+If you prefer, you can pull the prebuilt images.
+
+```bash
+make pull-docker
+```
+
+## Use with Claude Desktop
+
+To use this with Claude Desktop, add the following to your `claude_desktop_config.json`.
 
 ```json
 {
@@ -44,13 +57,35 @@ To use this with Claude Desktop, add the following to your claude_desktop_config
 }
 ```
 
-## Components
+> IMPORTANT
+>
+> You will also need the Jupyter MCP Server as documented on https://github.com/datalayer/jupyter-mcp-server.
 
-### Tools
+If you are using Linux, start Claude with the following command.
 
-The server currently offers 2 tools:
+```bash
+make claude-linux
+```
 
-1. `search_earth_datasets`
+Start JupyterLab.
+
+```bash
+make jupyterlab
+```
+
+You can now prompt via Claude.
+
+```
+create an analysis about sea level rise from 2000 to 2025 in my jupyter notebook with real downloaded data
+before that, install the needed python libraries you will need for the analysis
+```
+
+## Tools
+
+The server offers 2 tools.
+
+### `search_earth_datasets`
+
 - Search for datasets on NASA Earthdata.
 - Input:
   - search_keywords (str): Keywords to search for in the dataset titles.
@@ -59,7 +94,8 @@ The server currently offers 2 tools:
   - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
 - Returns: List of dataset abstracts.
 
-2. `search_earth_datagranules`
+### `search_earth_datagranules`
+
 - Search for data granules on NASA Earthdata.
 - Input:
   - short_name (str): Short name of the dataset.
@@ -67,9 +103,3 @@ The server currently offers 2 tools:
   - temporal (tuple): (Optional) Temporal range in the format (date_from, date_to).
   - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
 - Returns: List of data granules.
-        
-## Building from Source
-
-```bash
-docker build -t datalayer/earthdata-mcp-server .
-```

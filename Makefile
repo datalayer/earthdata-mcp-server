@@ -37,3 +37,29 @@ build-docker:
 push-docker:
 	docker push datalayer/earthdata-mcp-server:${VERSION}
 	docker push datalayer/earthdata-mcp-server:latest
+
+pull-docker:
+	docker push datalayer/earthdata-mcp-server:latest
+
+claude-linux:
+	NIXPKGS_ALLOW_UNFREE=1 nix run github:k3d3/claude-desktop-linux-flake \
+		--impure \
+		--extra-experimental-features flakes \
+		--extra-experimental-features nix-command
+
+jupyterlab:
+	pip uninstall -y pycrdt datalayer_pycrdt
+	pip install datalayer_pycrdt
+	jupyter lab \
+		--port 8888 \
+		--ip 0.0.0.0 \
+		--ServerApp.root_dir ./dev/content \
+		--IdentityProvider.token MY_TOKEN
+
+publish-pypi: # publish the pypi package
+	git clean -fdx && \
+		python -m build
+	@exec echo
+	@exec echo twine upload ./dist/*-py3-none-any.whl
+	@exec echo
+	@exec echo https://pypi.org/project/earthdata-mcp-server/#history

@@ -5,9 +5,10 @@
 import logging
 
 from mcp.server.fastmcp import FastMCP
+
 import earthaccess
 
-# Initialize FastMCP server
+
 mcp = FastMCP("earthdata")
 
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @mcp.tool()
-def search_earth_datasets(search_keywords: str, count: int, temporal:tuple, bounding_box:tuple) -> list:
+def search_earth_datasets(search_keywords: str, count: int, temporal: tuple | None, bounding_box: tuple | None) -> list:
     """
     Search for datasets on NASA Earthdata.
     
@@ -29,7 +30,7 @@ def search_earth_datasets(search_keywords: str, count: int, temporal:tuple, boun
     list
         List of dataset abstracts.
     """
-    
+
     search_params = {
         "keyword": search_keywords,
         "count": count,
@@ -42,22 +43,24 @@ def search_earth_datasets(search_keywords: str, count: int, temporal:tuple, boun
         search_params["bounding_box"] = bounding_box
 
     datasets = earthaccess.search_datasets(**search_params)
-    
+
     datasets_info = [
-        {'Title': dataset.get_umm("EntryTitle"), 
-         'ShortName': dataset.get_umm("ShortName"), 
-         'Abstract': dataset.abstract(), 
-         "Data Type": dataset.data_type(), 
-         "DOI": dataset.get_umm("DOI"),
-         "LandingPage": dataset.landing_page(),
-         "DatasetViz": dataset._filter_related_links("GET RELATED VISUALIZATION"),
-         "DatasetURL": dataset._filter_related_links("GET DATA"),
+        {
+            "Title": dataset.get_umm("EntryTitle"), 
+            "ShortName": dataset.get_umm("ShortName"), 
+            "Abstract": dataset.abstract(), 
+            "Data Type": dataset.data_type(), 
+            "DOI": dataset.get_umm("DOI"),
+            "LandingPage": dataset.landing_page(),
+            "DatasetViz": dataset._filter_related_links("GET RELATED VISUALIZATION"),
+            "DatasetURL": dataset._filter_related_links("GET DATA"),
          } for dataset in datasets]
-        
+
     return datasets_info
 
+
 @mcp.tool()
-def search_earth_datagranules(short_name: str, count:int, temporal:tuple, bounding_box:tuple) -> list:
+def search_earth_datagranules(short_name: str, count: int, temporal: tuple | None, bounding_box: tuple | None) -> list:
     """
     Search for data granules on NASA Earthdata.
     
@@ -87,6 +90,6 @@ def search_earth_datagranules(short_name: str, count:int, temporal:tuple, boundi
     
     return datagranules
 
+
 if __name__ == "__main__":
-    # Initialize and run the server
     mcp.run(transport='stdio')
