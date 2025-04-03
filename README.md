@@ -15,6 +15,8 @@
 
 Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server implementation that provides tools to interact with [NASA Earth Data](https://www.earthdata.nasa.gov/). It enables efficient dataset discovery and retrieval for Geospatial analysis.
 
+The following demo uses this MCP server to search for datasets and data granules on NASA Earthdata and the [jupyter-mcp-server](https://github.com/datalayer/jupyter-mcp-server) to run the analysis in JupyterLab.
+
 <div>
   <a href="https://www.loom.com/share/c2b5b05f548d4f1492d5c107f0c48dbc">
     <p>Analyzing Sea Level Rise with AI-Powered Geospatial Tools and Jupyter - Watch Video</p>
@@ -23,19 +25,6 @@ Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.
     <img style="max-width:100%;" src="https://cdn.loom.com/sessions/thumbnails/c2b5b05f548d4f1492d5c107f0c48dbc-598a84f02de7e74e-full-play.gif">
   </a>
 </div>
-
-## Docker Image
-
-```bash
-# or run `docker build -t datalayer/earthdata-mcp-server .`
-make build-docker
-```
-
-If you prefer, you can pull the prebuilt images.
-
-```bash
-make pull-docker
-```
 
 ## Use with Claude Desktop
 
@@ -57,27 +46,10 @@ To use this with Claude Desktop, add the following to your `claude_desktop_confi
 }
 ```
 
-> IMPORTANT
->
-> You will also need the Jupyter MCP Server as documented on https://github.com/datalayer/jupyter-mcp-server.
-
 If you are using Linux, start Claude with the following command.
 
 ```bash
 make claude-linux
-```
-
-Start JupyterLab.
-
-```bash
-make jupyterlab
-```
-
-You can now prompt via Claude.
-
-```
-create an analysis about sea level rise from 2000 to 2025 in my jupyter notebook with real downloaded data
-before that, install the needed python libraries you will need for the analysis
 ```
 
 ## Tools
@@ -103,3 +75,16 @@ The server offers 2 tools.
   - temporal (tuple): (Optional) Temporal range in the format (date_from, date_to).
   - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
 - Returns: List of data granules.
+
+## Building
+
+```bash
+# or run `docker build -t datalayer/earthdata-mcp-server .`
+make build-docker
+```
+
+If you prefer, you can pull the prebuilt images.
+
+```bash
+make pull-docker
+```
