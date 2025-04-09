@@ -15,7 +15,7 @@
 
 Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server implementation that provides tools to interact with [NASA Earth Data](https://www.earthdata.nasa.gov/). It enables efficient dataset discovery and retrieval for Geospatial analysis.
 
-The following demo uses this MCP server to search for datasets and data granules on NASA Earthdata and the [jupyter-mcp-server](https://github.com/datalayer/jupyter-mcp-server) to run the analysis in JupyterLab.
+The following demo uses this MCP server to search for datasets and data granules on NASA Earthdata, the [jupyter-earth-mcp-server](https://github.com/datalayer/jupyter-earth-mcp-server) to download the data in Jupyter and the [jupyter-mcp-server](https://github.com/datalayer/jupyter-mcp-server) to run further analysis.
 
 <div>
   <a href="https://www.loom.com/share/c2b5b05f548d4f1492d5c107f0c48dbc">
