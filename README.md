@@ -76,6 +76,19 @@ The server offers 2 tools.
   - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
 - Returns: List of data granules.
 
+## Prompts
+
+1. `sealevel_rise_dataset`
+   - Search for datasets related to sea level rise worldwide.
+   - Input:
+     - `start_year` (int): Start year to consider.
+      - `end_year` (int): End year to consider.
+   - Returns: Prompt correctly formatted.
+
+2. `ask_datasets_format`
+    - To ask about the format of the datasets.
+    - Returns: Prompt correctly formatted.
+
 ## Building
 
 ```bash

@@ -91,5 +91,15 @@ def search_earth_datagranules(short_name: str, count: int, temporal: tuple | Non
     return datagranules
 
 
+@mcp.prompt()
+def sealevel_rise_dataset(start_year: int, end_year: int) -> str:
+    return f"I’m interested in datasets about sealevel rise worldwide from {start_year} to {end_year}. Can you list relevant datasets?"
+
+
+@mcp.prompt()
+def ask_datasets_format() -> str:
+    return "What are the data formats of those datasets?"
+
+
 if __name__ == "__main__":
     mcp.run(transport='stdio')
