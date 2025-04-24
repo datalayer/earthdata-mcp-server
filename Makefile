@@ -31,7 +31,7 @@ clean: ## clean
 	git clean -fdx
 
 build-docker:
-	docker build -t datalayer/earthdata-mcp-server:${VERSION} .
+	docker buildx build --platform linux/amd64,linux/arm64 -t datalayer/earthdata-mcp-server:${VERSION} .
 	docker image tag datalayer/earthdata-mcp-server:${VERSION} datalayer/earthdata-mcp-server:latest
 
 push-docker:
