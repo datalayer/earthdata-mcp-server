@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/datalayer-earthdata-mcp-server-badge.png)](https://mseep.ai/app/datalayer-earthdata-mcp-server)
+
 <!--
   ~ Copyright (c) 2023-2024 Datalayer, Inc.
   ~
