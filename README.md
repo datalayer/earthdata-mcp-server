@@ -15,6 +15,8 @@
 
 Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server implementation that provides tools to interact with [NASA Earth Data](https://www.earthdata.nasa.gov/). It enables efficient dataset discovery and retrieval for Geospatial analysis.
 
+🚀 **NEW**: This server now includes all [Jupyter MCP Server](https://github.com/datalayer/jupyter-mcp-server) tools through composition, providing a unified interface for both Earth data discovery and Jupyter notebook manipulation.
+
 The following demo uses this MCP server to search for datasets and data granules on NASA Earthdata, the [jupyter-earth-mcp-server](https://github.com/datalayer/jupyter-earth-mcp-server) to download the data in Jupyter and the [jupyter-mcp-server](https://github.com/datalayer/jupyter-mcp-server) to run further analysis.
 
 <div>
@@ -54,9 +56,11 @@ make claude-linux
 
 ## Tools
 
-The server offers 2 tools.
+The server offers **14 tools total**: 2 Earthdata-specific tools plus 12 Jupyter notebook manipulation tools (prefixed with `jupyter_`).
 
-### `search_earth_datasets`
+### Earthdata Tools
+
+#### `search_earth_datasets`
 
 - Search for datasets on NASA Earthdata.
 - Input:
@@ -66,7 +70,7 @@ The server offers 2 tools.
   - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
 - Returns: List of dataset abstracts.
 
-### `search_earth_datagranules`
+#### `search_earth_datagranules`
 
 - Search for data granules on NASA Earthdata.
 - Input:
@@ -75,6 +79,59 @@ The server offers 2 tools.
   - temporal (tuple): (Optional) Temporal range in the format (date_from, date_to).
   - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
 - Returns: List of data granules.
+
+### Jupyter Tools (Composed)
+
+The following Jupyter notebook manipulation tools are available with the `jupyter_` prefix:
+
+- **`jupyter_append_markdown_cell`**: Add markdown cells to notebooks
+- **`jupyter_insert_markdown_cell`**: Insert markdown cells at specific positions
+- **`jupyter_overwrite_cell_source`**: Modify existing cell content
+- **`jupyter_append_execute_code_cell`**: Add and execute code cells
+- **`jupyter_insert_execute_code_cell`**: Insert and execute code cells at specific positions
+- **`jupyter_execute_cell_with_progress`**: Execute cells with progress monitoring
+- **`jupyter_execute_cell_simple_timeout`**: Execute cells with timeout
+- **`jupyter_execute_cell_streaming`**: Execute cells with streaming output
+- **`jupyter_read_all_cells`**: Read all notebook cells
+- **`jupyter_read_cell`**: Read specific notebook cells
+- **`jupyter_get_notebook_info`**: Get notebook metadata
+- **`jupyter_delete_cell`**: Delete notebook cells
+
+For detailed documentation of the Jupyter tools, see the [Jupyter MCP Server documentation](https://github.com/datalayer/jupyter-mcp-server).
+
+## Architecture: Server Composition
+
+This server uses a **composition pattern** to combine tools from multiple MCP servers into a single unified interface. The implementation:
+
+1. **Imports the Jupyter MCP Server** at runtime
+2. **Merges tool definitions** from the Jupyter server into the Earthdata server
+3. **Prefixes Jupyter tools** with `jupyter_` to avoid naming conflicts
+4. **Preserves all functionality** from both servers
+
+This approach provides several benefits:
+- ✅ **Unified Interface**: Single MCP server for both Earth data and Jupyter operations
+- ✅ **No Duplication**: Reuses existing Jupyter MCP Server code without copying
+- ✅ **Namespace Safety**: Prefixed tools prevent naming conflicts  
+- ✅ **Graceful Degradation**: Falls back to Earthdata-only if Jupyter server unavailable
+- ✅ **Maintainability**: Changes to Jupyter MCP Server are automatically included
+
+### Implementation Details
+
+The composition is implemented in the `_compose_jupyter_tools()` function, which:
+
+```python
+# Simplified version of the composition logic
+def _compose_jupyter_tools():
+    jupyter_mcp_module = importlib.import_module("jupyter_mcp_server.server")
+    jupyter_mcp_instance = jupyter_mcp_module.mcp
+    
+    # Add jupyter tools with prefixed names
+    for tool_name, tool in jupyter_mcp_instance._tool_manager._tools.items():
+        prefixed_name = f"jupyter_{tool_name}"
+        mcp._tool_manager._tools[prefixed_name] = tool
+```
+
+This pattern can be extended to compose additional MCP servers as needed.
 
 ## Prompts
 

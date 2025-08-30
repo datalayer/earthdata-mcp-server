@@ -3,16 +3,63 @@
 # BSD 3-Clause License
 
 import logging
+import importlib
 
 from mcp.server.fastmcp import FastMCP
 
 import earthaccess
 
 
-mcp = FastMCP("earthdata")
+# Create the composed server that will include both earthdata and jupyter tools
+mcp = FastMCP("earthdata-jupyter-composed")
 
 
 logger = logging.getLogger(__name__)
+
+
+# Function to safely import and compose jupyter-mcp-server tools
+def _compose_jupyter_tools():
+    """Import and add Jupyter MCP Server tools to our earthdata server."""
+    try:
+        # Import the jupyter mcp server module
+        jupyter_mcp_module = importlib.import_module("jupyter_mcp_server.server")
+        jupyter_mcp_instance = jupyter_mcp_module.mcp
+        
+        # Add jupyter tools to our earthdata server
+        # Note: We prefix jupyter tool names to avoid conflicts
+        for tool_name, tool in jupyter_mcp_instance._tool_manager._tools.items():
+            prefixed_name = f"jupyter_{tool_name}"
+            if prefixed_name not in mcp._tool_manager._tools:
+                # Add the tool with prefixed name
+                mcp._tool_manager._tools[prefixed_name] = tool
+                logger.info(f"Added Jupyter tool: {prefixed_name}")
+        
+        # Also copy any prompts if they exist
+        if hasattr(jupyter_mcp_instance, '_prompt_manager') and hasattr(jupyter_mcp_instance._prompt_manager, '_prompts'):
+            for prompt_name, prompt in jupyter_mcp_instance._prompt_manager._prompts.items():
+                prefixed_prompt_name = f"jupyter_{prompt_name}"
+                if prefixed_prompt_name not in mcp._prompt_manager._prompts:
+                    mcp._prompt_manager._prompts[prefixed_prompt_name] = prompt
+                    logger.info(f"Added Jupyter prompt: {prefixed_prompt_name}")
+        
+        # Copy resources if they exist
+        if hasattr(jupyter_mcp_instance, '_resource_manager') and hasattr(jupyter_mcp_instance._resource_manager, '_resources'):
+            for resource_name, resource in jupyter_mcp_instance._resource_manager._resources.items():
+                prefixed_resource_name = f"jupyter_{resource_name}"
+                if prefixed_resource_name not in mcp._resource_manager._resources:
+                    mcp._resource_manager._resources[prefixed_resource_name] = resource
+                    logger.info(f"Added Jupyter resource: {prefixed_resource_name}")
+                    
+        logger.info("Successfully composed Jupyter MCP Server tools")
+        
+    except ImportError:
+        logger.warning("jupyter-mcp-server not available, running with earthdata tools only")
+    except Exception as e:
+        logger.error(f"Error composing jupyter tools: {e}")
+
+
+# Compose the tools on import
+_compose_jupyter_tools()
 
 
 @mcp.tool()
