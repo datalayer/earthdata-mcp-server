@@ -56,7 +56,7 @@ make claude-linux
 
 ## Tools
 
-The server offers **14 tools total**: 2 Earthdata-specific tools plus 12 Jupyter notebook manipulation tools (prefixed with `jupyter_`).
+The server offers **15 tools total**: 3 Earthdata-specific tools plus 12 Jupyter notebook manipulation tools (prefixed with `jupyter_`).
 
 ### Earthdata Tools
 
@@ -79,6 +79,19 @@ The server offers **14 tools total**: 2 Earthdata-specific tools plus 12 Jupyter
   - temporal (tuple): (Optional) Temporal range in the format (date_from, date_to).
   - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
 - Returns: List of data granules.
+
+#### `download_earth_data_granules` 🆕
+
+- Download Earth data granules from NASA Earth Data and integrate with Jupyter notebooks.
+- This tool combines earthdata search capabilities with jupyter notebook manipulation to create a seamless download workflow.
+- Input:
+  - folder_name (str): Local folder name to save the data.
+  - short_name (str): Short name of the Earth dataset to download.
+  - count (int): Number of data granules to download.
+  - temporal (tuple): (Optional) Temporal range in the format (date_from, date_to).
+  - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
+- Returns: Success message with download code preparation details.
+- **Integration**: Uses composed jupyter tools to add download code to notebooks for interactive execution.
 
 ### Jupyter Tools (Composed)
 
@@ -135,14 +148,19 @@ This pattern can be extended to compose additional MCP servers as needed.
 
 ## Prompts
 
-1. `sealevel_rise_dataset`
+1. `download_analyze_global_sea_level` 🆕
+   - Generate a comprehensive workflow for downloading and analyzing Global Mean Sea Level Trend dataset.
+   - Uses both earthdata download tools and jupyter analysis capabilities.
+   - Returns: Detailed prompt for complete sea level analysis workflow.
+
+2. `sealevel_rise_dataset`
    - Search for datasets related to sea level rise worldwide.
    - Input:
      - `start_year` (int): Start year to consider.
       - `end_year` (int): End year to consider.
    - Returns: Prompt correctly formatted.
 
-2. `ask_datasets_format`
+3. `ask_datasets_format`
     - To ask about the format of the datasets.
     - Returns: Prompt correctly formatted.
 

@@ -337,8 +337,40 @@ async def main():
         print("\n" + "="*60)
         workflow = EarthdataJupyterWorkflow()
         
+        # Demonstrate the new download tool
+        print("\n🆕 NEW FEATURE DEMONSTRATION")
+        print("="*60)
+        
+        # Simulate using the download_earth_data_granules tool
+        print("📥 Demonstrating download_earth_data_granules tool:")
+        print("   This tool combines earthdata search with jupyter notebook integration")
+        print("   It creates download code and uses jupyter tools for execution")   
+        # Example download tool usage
+        download_example = {
+            "tool": "download_earth_data_granules",
+            "params": {
+                "folder_name": "global_sea_level_data",
+                "short_name": "TOPEX_L2_OST_GDR_C", 
+                "count": 15,
+                "temporal": ("2020-01-01", "2020-12-31"),
+                "bounding_box": None
+            },
+            "expected_result": "Download code added to notebook + execution"
+        }
+        
+        print(f"   📊 Example call: {download_example['tool']}")
+        for key, value in download_example['params'].items():
+            print(f"      {key}: {value}")
+        print(f"   ✅ Result: {download_example['expected_result']}")
+        
+        print(f"\n🔗 Integration with jupyter tools:")
+        print(f"   1. download_earth_data_granules → Prepares download code")
+        print(f"   2. jupyter_append_execute_code_cell → Adds code to notebook")  
+        print(f"   3. jupyter_execute_cell_with_progress → Runs download")
+        print(f"   4. jupyter_read_cell → Checks results")
+        
         # Run example workflows with different search terms
-        search_terms = ["sea level", "temperature", "gravity"]
+        search_terms = ["sea level", "temperature"]
         
         for term in search_terms:
             print(f"\n{'='*60}")

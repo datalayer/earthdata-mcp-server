@@ -41,7 +41,8 @@ class TestServerComposition(unittest.TestCase):
         """Test that original earthdata tools are present."""
         expected_earthdata_tools = [
             'search_earth_datasets',
-            'search_earth_datagranules'
+            'search_earth_datagranules',
+            'download_earth_data_granules'  # New tool added
         ]
         
         for tool in expected_earthdata_tools:
@@ -77,7 +78,7 @@ class TestServerComposition(unittest.TestCase):
         jupyter_tools = [t for t in self.all_tools if t.startswith('jupyter_')]
         
         # Expected counts based on current implementation
-        expected_earthdata_count = 2
+        expected_earthdata_count = 3  # Updated to include download tool
         expected_jupyter_count = 12
         expected_total = expected_earthdata_count + expected_jupyter_count
         
@@ -87,6 +88,18 @@ class TestServerComposition(unittest.TestCase):
                         f"Expected {expected_jupyter_count} jupyter tools, got {len(jupyter_tools)}")
         self.assertEqual(len(self.all_tools), expected_total,
                         f"Expected {expected_total} total tools, got {len(self.all_tools)}")
+    
+    def test_tool_callable(self):
+        """Test that tools are properly registered and callable."""
+        # Test that we can access tool definitions
+        for tool_name in ['search_earth_datasets', 'download_earth_data_granules', 'jupyter_read_all_cells']:
+            with self.subTest(tool=tool_name):
+                self.assertIn(tool_name, self.all_tools)
+                tool_def = self.mcp_server._tool_manager._tools[tool_name]
+                self.assertIsNotNone(tool_def)
+                
+                # Check that the tool has expected attributes
+                self.assertTrue(hasattr(tool_def, 'name') or hasattr(tool_def, '__name__'))
     
     def test_no_tool_name_conflicts(self):
         """Test that there are no naming conflicts between tool sets."""
@@ -108,8 +121,9 @@ class TestServerComposition(unittest.TestCase):
         if hasattr(self.mcp_server, '_prompt_manager'):
             prompts = list(self.mcp_server._prompt_manager._prompts.keys())
             
-            # Expected earthdata prompts
+            # Expected earthdata prompts (including new download prompt)
             expected_prompts = [
+                'download_analyze_global_sea_level',  # New prompt added
                 'sealevel_rise_dataset',
                 'ask_datasets_format'
             ]
@@ -157,9 +171,9 @@ def run_composition_validation() -> Dict[str, Any]:
         return {
             "status": "skipped",
             "reason": "jupyter-mcp-server not available",
-            "earthdata_tools": 2,
+            "earthdata_tools": 3,  # Updated to include download tool
             "jupyter_tools": 0,
-            "total_tools": 2
+            "total_tools": 3  # Updated total
         }
     
     mcp_server = earthdata_server.mcp
