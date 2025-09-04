@@ -55,6 +55,23 @@ If you are using Linux, start Claude with the following command.
 make claude-linux
 ```
 
+## Connecting to NASA Earthdata
+
+To interact with NASA Earthdata, you need an Earthdata Login account. You can learn more and register for an account through the [Earthdata Login API portal](https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/earthdata-login-api).
+
+### Authentication
+
+This server uses your Earthdata Login credentials to authenticate with NASA Earthdata. You need to provide your username and password as environment variables.
+
+In your terminal, you can set them like this:
+
+```bash
+export EARTHDATA_USERNAME="your_username"
+export EARTHDATA_PASSWORD="your_password"
+```
+
+The server will automatically use these variables to authenticate your requests.
+
 ## Tools
 
 The server offers **15 tools total**: 3 Earthdata-specific tools plus 12 Jupyter notebook manipulation tools (prefixed with `jupyter_`).
