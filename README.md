@@ -55,6 +55,94 @@ If you are using Linux, start Claude with the following command.
 make claude-linux
 ```
 
+## NASA Earthdata Authentication
+
+To access NASA Earthdata resources, you need to authenticate with NASA's Earthdata Login system. The tools in this server handle authentication automatically, but you'll need to provide credentials when prompted.
+
+### Getting a NASA Earthdata Account
+
+1. **Create an Account**: Visit [https://urs.earthdata.nasa.gov/](https://urs.earthdata.nasa.gov/) and click "Register"
+2. **Fill out the registration form** with your information
+3. **Verify your email** address by clicking the link in the confirmation email
+4. **Log in** to your account at [https://urs.earthdata.nasa.gov/](https://urs.earthdata.nasa.gov/)
+
+### Authentication Methods
+
+The earthaccess library (used by this server) supports several authentication methods:
+
+#### 1. Interactive Login (Recommended for Development)
+When using the server, the first time you access NASA data, you'll be prompted to log in:
+
+```python
+# This happens automatically when using download_earth_data_granules
+# or when the earthaccess library is first used
+auth = earthaccess.login()
+```
+
+The system will prompt you for:
+- **Username**: Your NASA Earthdata username  
+- **Password**: Your NASA Earthdata password
+
+#### 2. Environment Variables (Recommended for Production)
+Set these environment variables to avoid interactive prompts:
+
+```bash
+export EARTHDATA_USERNAME="your_username"
+export EARTHDATA_PASSWORD="your_password"
+```
+
+#### 3. .netrc File (Alternative Method)
+Create a `.netrc` file in your home directory:
+
+```bash
+# ~/.netrc
+machine urs.earthdata.nasa.gov
+login your_username
+password your_password
+```
+
+**Important**: Make sure the `.netrc` file has proper permissions:
+```bash
+chmod 600 ~/.netrc
+```
+
+### Testing Your Authentication
+
+You can test your authentication by running a simple earthaccess command:
+
+```python
+import earthaccess
+
+# Test authentication
+auth = earthaccess.login()
+if auth:
+    print("✅ Authentication successful!")
+    
+    # Test data access
+    results = earthaccess.search_datasets(keyword="sea level", count=1)
+    print(f"Found {len(results)} datasets")
+else:
+    print("❌ Authentication failed")
+```
+
+### Security Best Practices
+
+- **Never commit credentials** to version control
+- **Use environment variables** in production environments
+- **Keep your .netrc file private** with proper file permissions
+- **Regularly update your password** for security
+
+### Troubleshooting Authentication
+
+If you encounter authentication issues:
+
+1. **Verify your credentials** at [https://urs.earthdata.nasa.gov/](https://urs.earthdata.nasa.gov/)
+2. **Check for account suspension** - NASA may temporarily suspend accounts for security reasons
+3. **Clear cached credentials** by deleting `~/.earthaccess_config` if it exists
+4. **Try interactive login** even if using environment variables to debug the issue
+
+For more details, see the [earthaccess authentication documentation](https://earthaccess.readthedocs.io/en/latest/quick-start/#authentication).
+
 ## Tools
 
 The server offers **15 tools total**: 3 Earthdata-specific tools plus 12 Jupyter notebook manipulation tools (prefixed with `jupyter_`).
@@ -85,6 +173,7 @@ The server offers **15 tools total**: 3 Earthdata-specific tools plus 12 Jupyter
 
 - Download Earth data granules from NASA Earth Data and integrate with Jupyter notebooks.
 - This tool combines earthdata search capabilities with jupyter notebook manipulation to create a seamless download workflow.
+- **Authentication**: Requires NASA Earthdata Login credentials (see [Authentication section](#nasa-earthdata-authentication))
 - Input:
   - folder_name (str): Local folder name to save the data.
   - short_name (str): Short name of the Earth dataset to download.
@@ -113,6 +202,116 @@ The following Jupyter notebook manipulation tools are available with the `jupyte
 
 For detailed documentation of the Jupyter tools, see the [Jupyter MCP Server documentation](https://github.com/datalayer/jupyter-mcp-server).
 
+## Command-Line Interface
+
+The Earthdata MCP Server includes all command-line options from the Jupyter MCP Server, enabling full configuration of Jupyter integration alongside Earthdata capabilities.
+
+### Available Commands
+
+#### `start` - Start the Server
+
+Start the Earthdata-Jupyter Composed MCP server with full configuration options:
+
+```bash
+python -m earthdata_mcp_server.server start [OPTIONS]
+```
+
+**Key Options:**
+- `--transport [stdio|streamable-http]`: Server transport method (default: stdio)
+- `--provider [jupyter|datalayer]`: Jupyter provider type (default: jupyter)
+- `--runtime-url TEXT`: Jupyter server URL (default: http://localhost:8888)
+- `--runtime-token TEXT`: Authentication token for Jupyter server
+- `--document-url TEXT`: Document server URL (default: http://localhost:8888)
+- `--document-id TEXT`: Notebook path (default: notebook.ipynb)
+- `--document-token TEXT`: Authentication token for document server
+- `--port INTEGER`: Port for streamable-http transport (default: 4040)
+- `--start-new-runtime BOOLEAN`: Start new kernel vs. use existing (default: True)
+- `--runtime-id TEXT`: Specific kernel ID to use
+
+**Examples:**
+
+```bash
+# Start with stdio transport (for MCP clients)
+python -m earthdata_mcp_server.server start
+
+# Start with HTTP transport for testing
+python -m earthdata_mcp_server.server start --transport streamable-http --port 5050
+
+# Connect to specific Jupyter server with authentication
+python -m earthdata_mcp_server.server start \
+  --runtime-url http://my-jupyter:8888 \
+  --runtime-token my-token \
+  --document-id "analysis/sea-level.ipynb"
+
+# Use Datalayer provider
+python -m earthdata_mcp_server.server start \
+  --provider datalayer \
+  --runtime-url http://datalayer-runtime:8000
+```
+
+#### `connect` - Connect to Jupyter
+
+Connect to an existing Jupyter document and runtime:
+
+```bash
+python -m earthdata_mcp_server.server connect [OPTIONS]
+```
+
+**Options:** Same as `start` command, plus:
+- `--earthdata-mcp-server-url TEXT`: URL of running Earthdata MCP Server (default: http://localhost:4040)
+
+#### `stop` - Stop the Server
+
+Stop a running Earthdata MCP Server:
+
+```bash
+python -m earthdata_mcp_server.server stop [OPTIONS]
+```
+
+### Environment Variables
+
+All command-line options can be set via environment variables:
+
+```bash
+export PROVIDER="jupyter"
+export RUNTIME_URL="http://localhost:8888"
+export RUNTIME_TOKEN="my-jupyter-token"
+export DOCUMENT_URL="http://localhost:8888"
+export DOCUMENT_ID="notebook.ipynb"
+export DOCUMENT_TOKEN="my-document-token"
+export TRANSPORT="stdio"
+export PORT="4040"
+
+# Start with environment configuration
+python -m earthdata_mcp_server.server start
+```
+
+### Integration Testing
+
+Verify that the composition is working correctly:
+
+```bash
+# Run composition tests (tool integration and global variables)
+python earthdata_mcp_server/tests/test_composition.py
+
+# Run CLI options tests (command-line interface integration)
+python earthdata_mcp_server/tests/test_cli_options.py
+
+# Run all tests
+python earthdata_mcp_server/tests/test_composition.py && python earthdata_mcp_server/tests/test_cli_options.py
+```
+
+**test_composition.py** verifies:
+- ✅ All 15 tools are available (3 Earthdata + 12 Jupyter)
+- ✅ All command-line options are functional
+- ✅ Global variable synchronization works
+- ✅ Tool composition is successful
+
+**test_cli_options.py** verifies:
+- ✅ All CLI options from jupyter-mcp-server are available
+- ✅ All commands work correctly
+- ✅ Environment variable support is functional
+
 ## Architecture: Server Composition
 
 This server uses a **composition pattern** to combine tools from multiple MCP servers into a single unified interface. The implementation:
@@ -121,9 +320,12 @@ This server uses a **composition pattern** to combine tools from multiple MCP se
 2. **Merges tool definitions** from the Jupyter server into the Earthdata server
 3. **Prefixes Jupyter tools** with `jupyter_` to avoid naming conflicts
 4. **Preserves all functionality** from both servers
+5. **Reuses command-line interface** with all Jupyter MCP Server options available
+6. **Synchronizes global variables** between server instances for seamless operation
 
 This approach provides several benefits:
 - ✅ **Unified Interface**: Single MCP server for both Earth data and Jupyter operations
+- ✅ **Complete CLI Integration**: All Jupyter server options available for configuration
 - ✅ **No Duplication**: Reuses existing Jupyter MCP Server code without copying
 - ✅ **Namespace Safety**: Prefixed tools prevent naming conflicts  
 - ✅ **Graceful Degradation**: Falls back to Earthdata-only if Jupyter server unavailable
@@ -139,11 +341,24 @@ def _compose_jupyter_tools():
     jupyter_mcp_module = importlib.import_module("jupyter_mcp_server.server")
     jupyter_mcp_instance = jupyter_mcp_module.mcp
     
+    # Synchronize global variables for consistent configuration
+    _sync_jupyter_globals()
+    
     # Add jupyter tools with prefixed names
     for tool_name, tool in jupyter_mcp_instance._tool_manager._tools.items():
         prefixed_name = f"jupyter_{tool_name}"
         mcp._tool_manager._tools[prefixed_name] = tool
+
+def _sync_jupyter_globals():
+    """Bidirectional synchronization of global variables between servers"""
+    # Synchronize configuration variables like:
+    # RUNTIME_URL, DOCUMENT_URL, PROVIDER, TRANSPORT, etc.
 ```
+
+**Global Variable Synchronization**: The servers share configuration through synchronized global variables, ensuring that:
+- Jupyter tools use the same connection parameters as specified in Earthdata server commands
+- Configuration changes in one server are reflected in the other
+- Both servers maintain consistent state throughout operation
 
 This pattern can be extended to compose additional MCP servers as needed.
 
