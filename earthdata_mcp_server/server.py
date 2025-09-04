@@ -7,25 +7,87 @@ import importlib
 import asyncio
 import os
 
+import click
+import httpx
+import uvicorn
+from fastapi import Request
+from starlette.applications import Starlette
+from starlette.responses import JSONResponse
+from starlette.middleware.cors import CORSMiddleware
 from mcp.server.fastmcp import FastMCP
 
 import earthaccess
 
 
-# Create the composed server that will include both earthdata and jupyter tools
-mcp = FastMCP("earthdata-jupyter-composed")
+###############################################################################
 
+
+class FastMCPWithCORS(FastMCP):
+    def streamable_http_app(self) -> Starlette:
+        """Return StreamableHTTP server app with CORS middleware
+        See: https://github.com/modelcontextprotocol/python-sdk/issues/187
+        """
+        # Get the original Starlette app
+        app = super().streamable_http_app()
+        
+        # Add CORS middleware
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],  # In production, should set specific domains
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )        
+        return app
+    
+    def sse_app(self, mount_path: str | None = None) -> Starlette:
+        """Return SSE server app with CORS middleware"""
+        # Get the original Starlette app
+        app = super().sse_app(mount_path)
+        # Add CORS middleware
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],  # In production, should set specific domains
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )        
+        return app
+
+
+# Create the composed server that will include both earthdata and jupyter tools
+mcp = FastMCPWithCORS("earthdata-jupyter-composed")
 
 logger = logging.getLogger(__name__)
+
+# Global variables that will be synchronized with jupyter-mcp-server
+TRANSPORT: str = "stdio"
+PROVIDER: str = "jupyter"
+
+RUNTIME_URL: str = "http://localhost:8888"
+START_NEW_RUNTIME: bool = False
+RUNTIME_ID: str | None = None
+RUNTIME_TOKEN: str | None = None
+
+DOCUMENT_URL: str = "http://localhost:8888"
+DOCUMENT_ID: str = "notebook.ipynb"
+DOCUMENT_TOKEN: str | None = None
+
+# Reference to jupyter server module for global variable synchronization
+jupyter_mcp_module = None
 
 
 # Function to safely import and compose jupyter-mcp-server tools
 def _compose_jupyter_tools():
     """Import and add Jupyter MCP Server tools to our earthdata server."""
+    global jupyter_mcp_module
     try:
         # Import the jupyter mcp server module
         jupyter_mcp_module = importlib.import_module("jupyter_mcp_server.server")
         jupyter_mcp_instance = jupyter_mcp_module.mcp
+        
+        # Synchronize global variables from jupyter server
+        _sync_jupyter_globals()
         
         # Add jupyter tools to our earthdata server
         # Note: We prefix jupyter tool names to avoid conflicts
@@ -58,6 +120,41 @@ def _compose_jupyter_tools():
         logger.warning("jupyter-mcp-server not available, running with earthdata tools only")
     except Exception as e:
         logger.error(f"Error composing jupyter tools: {e}")
+
+
+def _sync_jupyter_globals():
+    """Synchronize global variables with jupyter-mcp-server module."""
+    if jupyter_mcp_module is None:
+        return
+        
+    global TRANSPORT, PROVIDER, RUNTIME_URL, START_NEW_RUNTIME, RUNTIME_ID, RUNTIME_TOKEN
+    global DOCUMENT_URL, DOCUMENT_ID, DOCUMENT_TOKEN
+    
+    try:
+        # Get values from jupyter module and update our globals
+        TRANSPORT = getattr(jupyter_mcp_module, 'TRANSPORT', TRANSPORT)
+        PROVIDER = getattr(jupyter_mcp_module, 'PROVIDER', PROVIDER)
+        RUNTIME_URL = getattr(jupyter_mcp_module, 'RUNTIME_URL', RUNTIME_URL)
+        START_NEW_RUNTIME = getattr(jupyter_mcp_module, 'START_NEW_RUNTIME', START_NEW_RUNTIME)
+        RUNTIME_ID = getattr(jupyter_mcp_module, 'RUNTIME_ID', RUNTIME_ID)
+        RUNTIME_TOKEN = getattr(jupyter_mcp_module, 'RUNTIME_TOKEN', RUNTIME_TOKEN)
+        DOCUMENT_URL = getattr(jupyter_mcp_module, 'DOCUMENT_URL', DOCUMENT_URL)
+        DOCUMENT_ID = getattr(jupyter_mcp_module, 'DOCUMENT_ID', DOCUMENT_ID)
+        DOCUMENT_TOKEN = getattr(jupyter_mcp_module, 'DOCUMENT_TOKEN', DOCUMENT_TOKEN)
+        
+        # Also update jupyter module globals from our values
+        jupyter_mcp_module.TRANSPORT = TRANSPORT
+        jupyter_mcp_module.PROVIDER = PROVIDER
+        jupyter_mcp_module.RUNTIME_URL = RUNTIME_URL
+        jupyter_mcp_module.START_NEW_RUNTIME = START_NEW_RUNTIME
+        jupyter_mcp_module.RUNTIME_ID = RUNTIME_ID
+        jupyter_mcp_module.RUNTIME_TOKEN = RUNTIME_TOKEN
+        jupyter_mcp_module.DOCUMENT_URL = DOCUMENT_URL
+        jupyter_mcp_module.DOCUMENT_ID = DOCUMENT_ID
+        jupyter_mcp_module.DOCUMENT_TOKEN = DOCUMENT_TOKEN
+        
+    except Exception as e:
+        logger.debug(f"Error syncing globals: {e}")
 
 
 # Compose the tools on import
@@ -262,5 +359,319 @@ def ask_datasets_format() -> str:
     return "What are the data formats of those datasets?"
 
 
+###############################################################################
+# Custom Routes (delegated to jupyter-mcp-server when available).
+
+
+@mcp.custom_route("/api/connect", ["PUT"])
+async def connect(request: Request):
+    """Connect to a document and a runtime from the Earthdata MCP server."""
+    if jupyter_mcp_module and hasattr(jupyter_mcp_module, 'connect'):
+        return await jupyter_mcp_module.connect(request)
+    else:
+        return JSONResponse({"success": False, "error": "Jupyter MCP Server not available"}, status_code=503)
+
+
+@mcp.custom_route("/api/stop", ["DELETE"])
+async def stop(request: Request):
+    """Stop the jupyter kernel."""
+    if jupyter_mcp_module and hasattr(jupyter_mcp_module, 'stop'):
+        return await jupyter_mcp_module.stop(request)
+    else:
+        return JSONResponse({"success": False, "error": "Jupyter MCP Server not available"}, status_code=503)
+
+
+@mcp.custom_route("/api/healthz", ["GET"])
+async def health_check(request: Request):
+    """Custom health check endpoint for earthdata-jupyter-composed server"""
+    kernel_status = "unknown"
+    jupyter_available = jupyter_mcp_module is not None
+    
+    if jupyter_available:
+        try:
+            # Try to get kernel status from jupyter module
+            kernel = getattr(jupyter_mcp_module, 'kernel', None)
+            if kernel:
+                kernel_status = "alive" if hasattr(kernel, 'is_alive') and kernel.is_alive() else "dead"
+            else:
+                kernel_status = "not_initialized"
+        except Exception:
+            kernel_status = "error"
+    
+    return JSONResponse(
+        {
+            "success": True,
+            "service": "earthdata-jupyter-composed-mcp-server",
+            "message": "Earthdata-Jupyter Composed MCP Server is running.",
+            "status": "healthy",
+            "jupyter_available": jupyter_available,
+            "kernel_status": kernel_status,
+        }
+    )
+
+
+###############################################################################
+# Commands.
+
+
+@click.group()
+def server():
+    """Manages Earthdata-Jupyter Composed MCP Server."""
+    pass
+
+
+@server.command("connect")
+@click.option(
+    "--provider",
+    envvar="PROVIDER",
+    type=click.Choice(["jupyter", "datalayer"]),
+    default="jupyter",
+    help="The provider to use for the document and runtime. Defaults to 'jupyter'.",
+)
+@click.option(
+    "--runtime-url",
+    envvar="RUNTIME_URL",
+    type=click.STRING,
+    default="http://localhost:8888",
+    help="The runtime URL to use. For the jupyter provider, this is the Jupyter server URL. For the datalayer provider, this is the Datalayer runtime URL.",
+)
+@click.option(
+    "--runtime-id",
+    envvar="RUNTIME_ID",
+    type=click.STRING,
+    default=None,
+    help="The kernel ID to use. If not provided, a new kernel should be started.",
+)
+@click.option(
+    "--runtime-token",
+    envvar="RUNTIME_TOKEN",
+    type=click.STRING,
+    default=None,
+    help="The runtime token to use for authentication with the provider.  For the jupyter provider, this is the jupyter token. For the datalayer provider, this is the datalayer token. If not provided, the provider should accept anonymous requests.",
+)
+@click.option(
+    "--document-url",
+    envvar="DOCUMENT_URL",
+    type=click.STRING,
+    default="http://localhost:8888",
+    help="The document URL to use. For the jupyter provider, this is the Jupyter server URL. For the datalayer provider, this is the Datalayer document URL.",
+)
+@click.option(
+    "--document-id",
+    envvar="DOCUMENT_ID",
+    type=click.STRING,
+    default="notebook.ipynb",
+    help="The document id to use. For the jupyter provider, this is the notebook path. For the datalayer provider, this is the notebook path.",
+)
+@click.option(
+    "--document-token",
+    envvar="DOCUMENT_TOKEN",
+    type=click.STRING,
+    default=None,
+    help="The document token to use for authentication with the provider. For the jupyter provider, this is the jupyter token. For the datalayer provider, this is the datalayer token. If not provided, the provider should accept anonymous requests.",
+)
+@click.option(
+    "--earthdata-mcp-server-url",
+    envvar="EARTHDATA_MCP_SERVER_URL",
+    type=click.STRING,
+    default="http://localhost:4040",
+    help="The URL of the Earthdata MCP Server to connect to. Defaults to 'http://localhost:4040'.",
+)
+def connect_command(
+    earthdata_mcp_server_url: str,
+    runtime_url: str,
+    runtime_id: str,
+    runtime_token: str,
+    document_url: str,
+    document_id: str,
+    document_token: str,
+    provider: str,
+):
+    """Command to connect an Earthdata MCP Server to a document and a runtime."""
+    
+    global PROVIDER, RUNTIME_URL, RUNTIME_ID, RUNTIME_TOKEN
+    global DOCUMENT_URL, DOCUMENT_ID, DOCUMENT_TOKEN
+    
+    PROVIDER = provider
+    RUNTIME_URL = runtime_url
+    RUNTIME_ID = runtime_id
+    RUNTIME_TOKEN = runtime_token
+    DOCUMENT_URL = document_url
+    DOCUMENT_ID = document_id
+    DOCUMENT_TOKEN = document_token
+    
+    # Sync with jupyter module if available
+    _sync_jupyter_globals()
+
+    try:
+        from jupyter_mcp_server.models import DocumentRuntime
+        document_runtime = DocumentRuntime(
+            provider=PROVIDER,
+            runtime_url=RUNTIME_URL,
+            runtime_id=RUNTIME_ID,
+            runtime_token=RUNTIME_TOKEN,
+            document_url=DOCUMENT_URL,
+            document_id=DOCUMENT_ID,
+            document_token=DOCUMENT_TOKEN,
+        )
+
+        r = httpx.put(
+            f"{earthdata_mcp_server_url}/api/connect",
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            content=document_runtime.model_dump_json(),
+        )
+        r.raise_for_status()
+    except ImportError:
+        logger.error("jupyter-mcp-server not available, cannot connect")
+        raise click.ClickException("jupyter-mcp-server module not available")
+
+
+@server.command("stop")
+@click.option(
+    "--earthdata-mcp-server-url",
+    envvar="EARTHDATA_MCP_SERVER_URL",
+    type=click.STRING,
+    default="http://localhost:4040",
+    help="The URL of the Earthdata MCP Server to stop. Defaults to 'http://localhost:4040'.",
+)
+def stop_command(earthdata_mcp_server_url: str):
+    """Stop the earthdata MCP server."""
+    r = httpx.delete(
+        f"{earthdata_mcp_server_url}/api/stop",
+    )
+    r.raise_for_status()
+
+
+@server.command("start")
+@click.option(
+    "--transport",
+    envvar="TRANSPORT",
+    type=click.Choice(["stdio", "streamable-http"]),
+    default="stdio",
+    help="The transport to use for the MCP server. Defaults to 'stdio'.",
+)
+@click.option(
+    "--provider",
+    envvar="PROVIDER",
+    type=click.Choice(["jupyter", "datalayer"]),
+    default="jupyter",
+    help="The provider to use for the document and runtime. Defaults to 'jupyter'.",
+)
+@click.option(
+    "--runtime-url",
+    envvar="RUNTIME_URL",
+    type=click.STRING,
+    default="http://localhost:8888",
+    help="The runtime URL to use. For the jupyter provider, this is the Jupyter server URL. For the datalayer provider, this is the Datalayer runtime URL.",
+)
+@click.option(
+    "--start-new-runtime",
+    envvar="START_NEW_RUNTIME",
+    type=click.BOOL,
+    default=True,
+    help="Start a new runtime or use an existing one.",
+)
+@click.option(
+    "--runtime-id",
+    envvar="RUNTIME_ID",
+    type=click.STRING,
+    default=None,
+    help="The kernel ID to use. If not provided, a new kernel should be started.",
+)
+@click.option(
+    "--runtime-token",
+    envvar="RUNTIME_TOKEN",
+    type=click.STRING,
+    default=None,
+    help="The runtime token to use for authentication with the provider. If not provided, the provider should accept anonymous requests.",
+)
+@click.option(
+    "--document-url",
+    envvar="DOCUMENT_URL",
+    type=click.STRING,
+    default="http://localhost:8888",
+    help="The document URL to use. For the jupyter provider, this is the Jupyter server URL. For the datalayer provider, this is the Datalayer document URL.",
+)
+@click.option(
+    "--document-id",
+    envvar="DOCUMENT_ID",
+    type=click.STRING,
+    default="notebook.ipynb",
+    help="The document id to use. For the jupyter provider, this is the notebook path. For the datalayer provider, this is the notebook path.",
+)
+@click.option(
+    "--document-token",
+    envvar="DOCUMENT_TOKEN",
+    type=click.STRING,
+    default=None,
+    help="The document token to use for authentication with the provider. If not provided, the provider should accept anonymous requests.",
+)
+@click.option(
+    "--port",
+    envvar="PORT",
+    type=click.INT,
+    default=4040,
+    help="The port to use for the Streamable HTTP transport. Ignored for stdio transport.",
+)
+def start_command(
+    transport: str,
+    start_new_runtime: bool,
+    runtime_url: str,
+    runtime_id: str,
+    runtime_token: str,
+    document_url: str,
+    document_id: str,
+    document_token: str,
+    port: int,
+    provider: str,
+):
+    """Start the Earthdata-Jupyter Composed MCP server with a transport."""
+
+    global TRANSPORT, PROVIDER, RUNTIME_URL, START_NEW_RUNTIME, RUNTIME_ID, RUNTIME_TOKEN
+    global DOCUMENT_URL, DOCUMENT_ID, DOCUMENT_TOKEN
+
+    TRANSPORT = transport
+    PROVIDER = provider
+    RUNTIME_URL = runtime_url
+    START_NEW_RUNTIME = start_new_runtime
+    RUNTIME_ID = runtime_id
+    RUNTIME_TOKEN = runtime_token
+    DOCUMENT_URL = document_url
+    DOCUMENT_ID = document_id
+    DOCUMENT_TOKEN = document_token
+
+    # Sync with jupyter module if available
+    _sync_jupyter_globals()
+
+    # Initialize jupyter kernel if specified and jupyter module is available
+    if (START_NEW_RUNTIME or RUNTIME_ID) and jupyter_mcp_module:
+        try:
+            # Try different ways to access the kernel start function
+            if hasattr(jupyter_mcp_module, '__start_kernel'):
+                jupyter_mcp_module.__start_kernel()
+            elif hasattr(jupyter_mcp_module, '_start_kernel'):
+                jupyter_mcp_module._start_kernel()
+            else:
+                logger.warning("Jupyter kernel start function not found")
+        except Exception as e:
+            logger.error(f"Failed to start kernel on startup: {e}")
+
+    logger.info(f"Starting Earthdata-Jupyter Composed MCP Server with transport: {transport}")
+
+    if transport == "stdio":
+        mcp.run(transport="stdio")
+    elif transport == "streamable-http":
+        uvicorn.run(mcp.streamable_http_app(), host="0.0.0.0", port=port)  # noqa: S104
+    else:
+        raise Exception("Transport should be `stdio` or `streamable-http`.")
+
+
+###############################################################################
+# Main.
+
+
 if __name__ == "__main__":
-    mcp.run(transport='stdio')
+    server()
