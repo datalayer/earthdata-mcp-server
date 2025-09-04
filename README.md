@@ -134,11 +134,32 @@ jupyter lab --port 8888 --IdentityProvider.token MY_TOKEN --ip 0.0.0.0
 }
 ```
 
+
+## Connecting to NASA Earthdata
+
+To interact with NASA Earthdata, you need an Earthdata Login account. You can learn more and register for an account through the [Earthdata Login API portal](https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/earthdata-login-api).
+
+### Authentication
+
+This server uses your Earthdata Login credentials to authenticate with NASA Earthdata. You need to provide your username and password as environment variables.
+Generate and Earth data Token in one of the tabs. 
+
+In your terminal, you can set them like this:
+
+```bash
+export EARTHDATA_USERNAME="your_username"
+export EARTHDATA_PASSWORD="your_password"
+export EARTHDATA_TOKEN="your_token"
+```
+
+The server will automatically use these variables to authenticate your requests.
+
 ## 📚 Documentation
 
 - [Architecture](./docs/architecture.md): Learn about the server composition pattern
 - [Authentication](./docs/authentication.md): How to authenticate with NASA Earthdata
 - [Tools](./docs/tools.md): Detailed documentation of available tools
+
 
 ## Tools
 
