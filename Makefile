@@ -54,7 +54,7 @@ jupyterlab:
 		--port 8888 \
 		--ip 0.0.0.0 \
 		--ServerApp.root_dir ./dev/content \
-		--IdentityProvider.token=""
+		--IdentityProvider.token MY_TOKEN
 
 start: ## start the earthdata mcp server with streamable-http transport
 	@exec echo
