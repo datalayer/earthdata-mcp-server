@@ -4,8 +4,6 @@
 
 import logging
 import importlib
-import asyncio
-import os
 
 import click
 import httpx
@@ -60,20 +58,7 @@ mcp = FastMCPWithCORS("earthdata-jupyter-composed")
 
 logger = logging.getLogger(__name__)
 
-# Global variables that will be synchronized with jupyter-mcp-server
-TRANSPORT: str = "stdio"
-PROVIDER: str = "jupyter"
-
-RUNTIME_URL: str = "http://localhost:8888"
-START_NEW_RUNTIME: bool = False
-RUNTIME_ID: str | None = None
-RUNTIME_TOKEN: str | None = None
-
-DOCUMENT_URL: str = "http://localhost:8888"
-DOCUMENT_ID: str = "notebook.ipynb"
-DOCUMENT_TOKEN: str | None = None
-
-# Reference to jupyter server module for global variable synchronization
+# Reference to jupyter server module
 jupyter_mcp_module = None
 
 
@@ -85,9 +70,6 @@ def _compose_jupyter_tools():
         # Import the jupyter mcp server module
         jupyter_mcp_module = importlib.import_module("jupyter_mcp_server.server")
         jupyter_mcp_instance = jupyter_mcp_module.mcp
-        
-        # Synchronize global variables from jupyter server
-        _sync_jupyter_globals()
         
         # Log original jupyter tools before composition
         if hasattr(jupyter_mcp_instance, '_tool_manager') and hasattr(jupyter_mcp_instance._tool_manager, '_tools'):
@@ -152,44 +134,6 @@ def _compose_jupyter_tools():
         # Log current tools even if composition failed
         current_tools = list(mcp._tool_manager._tools.keys())
         logger.info(f"Tools available after failed composition: {current_tools}")
-
-
-def _sync_jupyter_globals():
-    """Synchronize global variables with jupyter-mcp-server module."""
-    if jupyter_mcp_module is None:
-        return
-        
-    global TRANSPORT, PROVIDER, RUNTIME_URL, START_NEW_RUNTIME, RUNTIME_ID, RUNTIME_TOKEN
-    global DOCUMENT_URL, DOCUMENT_ID, DOCUMENT_TOKEN
-    
-    try:
-        # Get values from jupyter module and update our globals
-        TRANSPORT = getattr(jupyter_mcp_module, 'TRANSPORT', TRANSPORT)
-        PROVIDER = getattr(jupyter_mcp_module, 'PROVIDER', PROVIDER)
-        RUNTIME_URL = getattr(jupyter_mcp_module, 'RUNTIME_URL', RUNTIME_URL)
-        START_NEW_RUNTIME = getattr(jupyter_mcp_module, 'START_NEW_RUNTIME', START_NEW_RUNTIME)
-        RUNTIME_ID = getattr(jupyter_mcp_module, 'RUNTIME_ID', RUNTIME_ID)
-        RUNTIME_TOKEN = getattr(jupyter_mcp_module, 'RUNTIME_TOKEN', RUNTIME_TOKEN)
-        DOCUMENT_URL = getattr(jupyter_mcp_module, 'DOCUMENT_URL', DOCUMENT_URL)
-        DOCUMENT_ID = getattr(jupyter_mcp_module, 'DOCUMENT_ID', DOCUMENT_ID)
-        DOCUMENT_TOKEN = getattr(jupyter_mcp_module, 'DOCUMENT_TOKEN', DOCUMENT_TOKEN)
-        
-        # Also update jupyter module globals from our values
-        jupyter_mcp_module.TRANSPORT = TRANSPORT
-        jupyter_mcp_module.PROVIDER = PROVIDER
-        jupyter_mcp_module.RUNTIME_URL = RUNTIME_URL
-        jupyter_mcp_module.START_NEW_RUNTIME = START_NEW_RUNTIME
-        jupyter_mcp_module.RUNTIME_ID = RUNTIME_ID
-        jupyter_mcp_module.RUNTIME_TOKEN = RUNTIME_TOKEN
-        jupyter_mcp_module.DOCUMENT_URL = DOCUMENT_URL
-        jupyter_mcp_module.DOCUMENT_ID = DOCUMENT_ID
-        jupyter_mcp_module.DOCUMENT_TOKEN = DOCUMENT_TOKEN
-        
-        logger.info(f"Synced globals - DOCUMENT_TOKEN: {'***' if DOCUMENT_TOKEN else 'None'}, RUNTIME_TOKEN: {'***' if RUNTIME_TOKEN else 'None'}")
-        logger.info(f"Synced globals - DOCUMENT_URL: {DOCUMENT_URL}, RUNTIME_URL: {RUNTIME_URL}")
-        
-    except Exception as e:
-        logger.debug(f"Error syncing globals: {e}")
 
 
 # Compose the tools on import - wrapped in try/except to prevent startup failure
@@ -530,30 +474,42 @@ def connect_command(
 ):
     """Command to connect an Earthdata MCP Server to a document and a runtime."""
     
-    global PROVIDER, RUNTIME_URL, RUNTIME_ID, RUNTIME_TOKEN
-    global DOCUMENT_URL, DOCUMENT_ID, DOCUMENT_TOKEN
-    
-    PROVIDER = provider
-    RUNTIME_URL = runtime_url
-    RUNTIME_ID = runtime_id
-    RUNTIME_TOKEN = runtime_token
-    DOCUMENT_URL = document_url
-    DOCUMENT_ID = document_id
-    DOCUMENT_TOKEN = document_token
-    
-    # Sync with jupyter module if available
-    _sync_jupyter_globals()
+    # Set configuration through jupyter module if available
+    if jupyter_mcp_module:
+        try:
+            # Import the config module from jupyter-mcp-server
+            config_module = importlib.import_module("jupyter_mcp_server.config")
+            
+            # Set configuration using the singleton
+            config_module.set_config(
+                provider=provider,
+                runtime_url=runtime_url,
+                runtime_id=runtime_id,
+                runtime_token=runtime_token,
+                document_url=document_url,
+                document_id=document_id,
+                document_token=document_token
+            )
+            
+            config = config_module.get_config()
+            
+        except Exception as e:
+            logger.error(f"Error setting configuration through jupyter module: {e}")
+            raise click.ClickException(f"Failed to set configuration: {e}")
+    else:
+        logger.error("jupyter-mcp-server not available, cannot connect")
+        raise click.ClickException("jupyter-mcp-server module not available")
 
     try:
         from jupyter_mcp_server.models import DocumentRuntime
         document_runtime = DocumentRuntime(
-            provider=PROVIDER,
-            runtime_url=RUNTIME_URL,
-            runtime_id=RUNTIME_ID,
-            runtime_token=RUNTIME_TOKEN,
-            document_url=DOCUMENT_URL,
-            document_id=DOCUMENT_ID,
-            document_token=DOCUMENT_TOKEN,
+            provider=config.provider,
+            runtime_url=config.runtime_url,
+            runtime_id=config.runtime_id,
+            runtime_token=config.runtime_token,
+            document_url=config.document_url,
+            document_id=config.document_id,
+            document_token=config.document_token,
         )
 
         r = httpx.put(
@@ -671,32 +627,45 @@ def start_command(
 ):
     """Start the Earthdata-Jupyter Composed MCP server with a transport."""
 
-    global TRANSPORT, PROVIDER, RUNTIME_URL, START_NEW_RUNTIME, RUNTIME_ID, RUNTIME_TOKEN
-    global DOCUMENT_URL, DOCUMENT_ID, DOCUMENT_TOKEN
-
-    TRANSPORT = transport
-    PROVIDER = provider
-    RUNTIME_URL = runtime_url
-    START_NEW_RUNTIME = start_new_runtime
-    RUNTIME_ID = runtime_id
-    RUNTIME_TOKEN = runtime_token
-    DOCUMENT_URL = document_url
-    DOCUMENT_ID = document_id
-    DOCUMENT_TOKEN = document_token
-
-    # Sync with jupyter module if available - this ensures tokens are properly set
-    _sync_jupyter_globals()
-    
-    # Re-compose tools with updated configuration to ensure authentication works
+    # Set configuration through jupyter module if available
     if jupyter_mcp_module:
-        logger.info("Re-syncing jupyter tools with updated configuration...")
         try:
+            # Import the config module from jupyter-mcp-server
+            config_module = importlib.import_module("jupyter_mcp_server.config")
+            
+            # Set configuration using the singleton
+            config_module.set_config(
+                transport=transport,
+                provider=provider,
+                runtime_url=runtime_url,
+                start_new_runtime=start_new_runtime,
+                runtime_id=runtime_id,
+                runtime_token=runtime_token,
+                document_url=document_url,
+                document_id=document_id,
+                document_token=document_token,
+                port=port
+            )
+            
+            logger.info("Configuration updated through jupyter-mcp-server config")
+            
+            # Re-compose tools with updated configuration
+            logger.info("Re-syncing jupyter tools with updated configuration...")
             _compose_jupyter_tools()
+            
         except Exception as e:
-            logger.error(f"Error re-composing tools with updated config: {e}")
+            logger.error(f"Error setting configuration through jupyter module: {e}")
 
     # Initialize jupyter kernel if specified and jupyter module is available
-    if (START_NEW_RUNTIME or RUNTIME_ID) and jupyter_mcp_module:
+    config = None
+    if jupyter_mcp_module:
+        try:
+            config_module = importlib.import_module("jupyter_mcp_server.config")
+            config = config_module.get_config()
+        except Exception:
+            pass
+            
+    if config and (config.start_new_runtime or config.runtime_id) and jupyter_mcp_module:
         try:
             # Try different ways to access the kernel start function
             if hasattr(jupyter_mcp_module, '__start_kernel'):

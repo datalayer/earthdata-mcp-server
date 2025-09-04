@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
     "earthaccess",
     "mcp[cli]>=1.2.1",
-    "jupyter-mcp-server<2",
+    "jupyter-mcp-server>=0.12.0,<1",
     "rich"
 ]
 
