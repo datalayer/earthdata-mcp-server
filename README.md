@@ -16,9 +16,14 @@
 
 Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server implementation that provides tools to interact with [NASA Earth Data](https://www.earthdata.nasa.gov/). It enables efficient dataset discovery and retrieval for Geospatial analysis.
 
-🚀 **NEW**: This server now includes all [Jupyter MCP Server](https://github.com/datalayer/jupyter-mcp-server) tools through composition, providing a unified interface for both Earth data discovery and Jupyter notebook manipulation.
+🚀 **NEW**: This server now includes all [Jupyter MCP Server](https://github.com/datalayer/jupyter-mcp-server) tools through composition, providing a unified interface for both Earth data discovery and Jupyter notebook manipulation. All Jupyter MCP Server command-line options are also available for seamless integration.
 
-The following demo uses this MCP server to search for datasets and data granules on NASA Earthdata, the [jupyter-earth-mcp-server](https://github.com/datalayer/jupyter-earth-mcp-server) to download the data in Jupyter and the [jupyter-mcp-server](https://github.com/datalayer/jupyter-mcp-server) to run further analysis.
+## 🚀 Key Features
+
+- **Unified Interface**: Combines Earthdata and Jupyter tools
+- **Efficient Data Retrieval**: Search and download Earthdata datasets
+
+The following demo uses this MCP server to search for datasets and data granules on NASA Earthdata, to download the data in Jupyter and to run further analysis.
 
 <div>
   <a href="https://www.loom.com/share/c2b5b05f548d4f1492d5c107f0c48dbc">
@@ -29,9 +34,36 @@ The following demo uses this MCP server to search for datasets and data granules
   </a>
 </div>
 
-## Use with Claude Desktop
+## 🏁 Getting Started
 
-To use this with Claude Desktop, add the following to your `claude_desktop_config.json`.
+For comprehensive setup instructions—including `Streamable HTTP` transport and advanced configuration—check out [thr documentation](https://jupyter-mcp-server.datalayer.tech/). Or, get started quickly with `JupyterLab` and `stdio` transport here below.
+
+### 1. Set Up Your Environment
+
+```bash
+pip install jupyterlab==4.4.1 jupyter-collaboration==4.0.2 ipykernel
+pip uninstall -y pycrdt datalayer_pycrdt
+pip install datalayer_pycrdt==0.12.17
+```
+
+### 2. Start JupyterLab
+
+```bash
+# make jupyterlab
+jupyter lab --port 8888 --IdentityProvider.token MY_TOKEN --ip 0.0.0.0
+```
+
+### 3. Configure Your Preferred MCP Client
+
+> [!NOTE]
+>
+> Ensure the `port` of the `DOCUMENT_URL` and `RUNTIME_URL` match those used in the `jupyter lab` command.
+>
+> The `DOCUMENT_ID` which is the path to the notebook you want to connect to, should be relative to the directory where JupyterLab was started.
+>
+> In a basic setup, `DOCUMENT_URL` and `RUNTIME_URL` are the same. `DOCUMENT_TOKEN`, and `RUNTIME_TOKEN` are also the same and is actually the Jupyter Token.
+
+#### MacOS and Windows
 
 ```json
 {
@@ -42,18 +74,66 @@ To use this with Claude Desktop, add the following to your `claude_desktop_confi
         "run",
         "-i",
         "--rm",
+        "-e",
+        "DOCUMENT_URL",
+        "-e",
+        "DOCUMENT_TOKEN",
+        "-e",
+        "DOCUMENT_ID",
+        "-e",
+        "RUNTIME_URL",
+        "-e",
+        "RUNTIME_TOKEN",
         "datalayer/earthdata-mcp-server:latest"
-      ]
+      ],
+      "env": {
+        "DOCUMENT_URL": "http://host.docker.internal:8888",
+        "DOCUMENT_TOKEN": "MY_TOKEN",
+        "DOCUMENT_ID": "notebook.ipynb",
+        "RUNTIME_URL": "http://host.docker.internal:8888",
+        "RUNTIME_TOKEN": "MY_TOKEN"
+      }
     }
   }
 }
 ```
 
-If you are using Linux, start Claude with the following command.
+#### Linux
 
-```bash
-make claude-linux
+```json
+{
+  "mcpServers": {
+    "earthdata": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "DOCUMENT_URL",
+        "-e",
+        "DOCUMENT_TOKEN",
+        "-e",
+        "DOCUMENT_ID",
+        "-e",
+        "RUNTIME_URL",
+        "-e",
+        "RUNTIME_TOKEN",
+        "--network=host",
+        "datalayer/earthdata-mcp-server:latest"
+      ],
+      "env": {
+        "DOCUMENT_URL": "http://localhost:8888",
+        "DOCUMENT_TOKEN": "MY_TOKEN",
+        "DOCUMENT_ID": "notebook.ipynb",
+        "RUNTIME_URL": "http://localhost:8888",
+        "RUNTIME_TOKEN": "MY_TOKEN"
+      }
+    }
+  }
+}
 ```
+
 
 ## Connecting to NASA Earthdata
 
@@ -73,6 +153,13 @@ export EARTHDATA_TOKEN="your_token"
 ```
 
 The server will automatically use these variables to authenticate your requests.
+
+## 📚 Documentation
+
+- [Architecture](./docs/architecture.md): Learn about the server composition pattern
+- [Authentication](./docs/authentication.md): How to authenticate with NASA Earthdata
+- [Tools](./docs/tools.md): Detailed documentation of available tools
+
 
 ## Tools
 
@@ -100,10 +187,11 @@ The server offers **15 tools total**: 3 Earthdata-specific tools plus 12 Jupyter
   - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
 - Returns: List of data granules.
 
-#### `download_earth_data_granules` 🆕
+#### `download_earth_data_granules`
 
 - Download Earth data granules from NASA Earth Data and integrate with Jupyter notebooks.
 - This tool combines earthdata search capabilities with jupyter notebook manipulation to create a seamless download workflow.
+- **Authentication**: Requires NASA Earthdata Login credentials (see [Authentication section](#nasa-earthdata-authentication))
 - Input:
   - folder_name (str): Local folder name to save the data.
   - short_name (str): Short name of the Earth dataset to download.
@@ -111,7 +199,6 @@ The server offers **15 tools total**: 3 Earthdata-specific tools plus 12 Jupyter
   - temporal (tuple): (Optional) Temporal range in the format (date_from, date_to).
   - bounding_box (tuple): (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
 - Returns: Success message with download code preparation details.
-- **Integration**: Uses composed jupyter tools to add download code to notebooks for interactive execution.
 
 ### Jupyter Tools (Composed)
 
@@ -131,40 +218,6 @@ The following Jupyter notebook manipulation tools are available with the `jupyte
 - **`jupyter_delete_cell`**: Delete notebook cells
 
 For detailed documentation of the Jupyter tools, see the [Jupyter MCP Server documentation](https://github.com/datalayer/jupyter-mcp-server).
-
-## Architecture: Server Composition
-
-This server uses a **composition pattern** to combine tools from multiple MCP servers into a single unified interface. The implementation:
-
-1. **Imports the Jupyter MCP Server** at runtime
-2. **Merges tool definitions** from the Jupyter server into the Earthdata server
-3. **Prefixes Jupyter tools** with `jupyter_` to avoid naming conflicts
-4. **Preserves all functionality** from both servers
-
-This approach provides several benefits:
-- ✅ **Unified Interface**: Single MCP server for both Earth data and Jupyter operations
-- ✅ **No Duplication**: Reuses existing Jupyter MCP Server code without copying
-- ✅ **Namespace Safety**: Prefixed tools prevent naming conflicts  
-- ✅ **Graceful Degradation**: Falls back to Earthdata-only if Jupyter server unavailable
-- ✅ **Maintainability**: Changes to Jupyter MCP Server are automatically included
-
-### Implementation Details
-
-The composition is implemented in the `_compose_jupyter_tools()` function, which:
-
-```python
-# Simplified version of the composition logic
-def _compose_jupyter_tools():
-    jupyter_mcp_module = importlib.import_module("jupyter_mcp_server.server")
-    jupyter_mcp_instance = jupyter_mcp_module.mcp
-    
-    # Add jupyter tools with prefixed names
-    for tool_name, tool in jupyter_mcp_instance._tool_manager._tools.items():
-        prefixed_name = f"jupyter_{tool_name}"
-        mcp._tool_manager._tools[prefixed_name] = tool
-```
-
-This pattern can be extended to compose additional MCP servers as needed.
 
 ## Prompts
 
