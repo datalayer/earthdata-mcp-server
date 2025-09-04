@@ -62,12 +62,14 @@ To interact with NASA Earthdata, you need an Earthdata Login account. You can le
 ### Authentication
 
 This server uses your Earthdata Login credentials to authenticate with NASA Earthdata. You need to provide your username and password as environment variables.
+Generate and Earth data Token in one of the tabs. 
 
 In your terminal, you can set them like this:
 
 ```bash
 export EARTHDATA_USERNAME="your_username"
 export EARTHDATA_PASSWORD="your_password"
+export EARTHDATA_TOKEN="your_token"
 ```
 
 The server will automatically use these variables to authenticate your requests.
