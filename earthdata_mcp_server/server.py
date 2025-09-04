@@ -89,37 +89,69 @@ def _compose_jupyter_tools():
         # Synchronize global variables from jupyter server
         _sync_jupyter_globals()
         
-        # Add jupyter tools to our earthdata server
-        # Note: We prefix jupyter tool names to avoid conflicts
-        for tool_name, tool in jupyter_mcp_instance._tool_manager._tools.items():
-            prefixed_name = f"jupyter_{tool_name}"
-            if prefixed_name not in mcp._tool_manager._tools:
-                # Add the tool with prefixed name
-                mcp._tool_manager._tools[prefixed_name] = tool
-                logger.info(f"Added Jupyter tool: {prefixed_name}")
+        # Log original jupyter tools before composition
+        if hasattr(jupyter_mcp_instance, '_tool_manager') and hasattr(jupyter_mcp_instance._tool_manager, '_tools'):
+            original_tools = list(jupyter_mcp_instance._tool_manager._tools.keys())
+            logger.info(f"Original Jupyter tools found: {original_tools}")
+            
+            # Track how many tools were added/updated
+            added_count = 0
+            updated_count = 0
+            
+            # Add jupyter tools to our earthdata server without prefix
+            for tool_name, tool in jupyter_mcp_instance._tool_manager._tools.items():
+                if tool_name not in mcp._tool_manager._tools:
+                    # Add the tool with original name
+                    mcp._tool_manager._tools[tool_name] = tool
+                    logger.info(f"Added Jupyter tool: {tool_name}")
+                    added_count += 1
+                else:
+                    # Update existing tool (in case authentication config changed)
+                    mcp._tool_manager._tools[tool_name] = tool
+                    logger.info(f"Updated Jupyter tool: {tool_name}")
+                    updated_count += 1
+            
+            logger.info(f"Tool composition summary: {added_count} added, {updated_count} updated")
+        else:
+            logger.warning("Jupyter MCP instance does not have tool manager")
         
         # Also copy any prompts if they exist
         if hasattr(jupyter_mcp_instance, '_prompt_manager') and hasattr(jupyter_mcp_instance._prompt_manager, '_prompts'):
             for prompt_name, prompt in jupyter_mcp_instance._prompt_manager._prompts.items():
-                prefixed_prompt_name = f"jupyter_{prompt_name}"
-                if prefixed_prompt_name not in mcp._prompt_manager._prompts:
-                    mcp._prompt_manager._prompts[prefixed_prompt_name] = prompt
-                    logger.info(f"Added Jupyter prompt: {prefixed_prompt_name}")
+                if prompt_name not in mcp._prompt_manager._prompts:
+                    mcp._prompt_manager._prompts[prompt_name] = prompt
+                    logger.info(f"Added Jupyter prompt: {prompt_name}")
+                else:
+                    mcp._prompt_manager._prompts[prompt_name] = prompt
+                    logger.info(f"Updated Jupyter prompt: {prompt_name}")
         
         # Copy resources if they exist
         if hasattr(jupyter_mcp_instance, '_resource_manager') and hasattr(jupyter_mcp_instance._resource_manager, '_resources'):
             for resource_name, resource in jupyter_mcp_instance._resource_manager._resources.items():
-                prefixed_resource_name = f"jupyter_{resource_name}"
-                if prefixed_resource_name not in mcp._resource_manager._resources:
-                    mcp._resource_manager._resources[prefixed_resource_name] = resource
-                    logger.info(f"Added Jupyter resource: {prefixed_resource_name}")
-                    
+                if resource_name not in mcp._resource_manager._resources:
+                    mcp._resource_manager._resources[resource_name] = resource
+                    logger.info(f"Added Jupyter resource: {resource_name}")
+                else:
+                    mcp._resource_manager._resources[resource_name] = resource
+                    logger.info(f"Updated Jupyter resource: {resource_name}")
+        
+        # Log all available tools after composition
+        all_tools = list(mcp._tool_manager._tools.keys())
+        logger.info(f"All tools available after composition ({len(all_tools)}): {all_tools}")
         logger.info("Successfully composed Jupyter MCP Server tools")
         
-    except ImportError:
-        logger.warning("jupyter-mcp-server not available, running with earthdata tools only")
+    except ImportError as e:
+        logger.warning(f"jupyter-mcp-server not available: {e}, running with earthdata tools only")
+        # Log earthdata-only tools
+        earthdata_tools = list(mcp._tool_manager._tools.keys())
+        logger.info(f"Earthdata-only tools available: {earthdata_tools}")
     except Exception as e:
         logger.error(f"Error composing jupyter tools: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Log current tools even if composition failed
+        current_tools = list(mcp._tool_manager._tools.keys())
+        logger.info(f"Tools available after failed composition: {current_tools}")
 
 
 def _sync_jupyter_globals():
@@ -153,12 +185,21 @@ def _sync_jupyter_globals():
         jupyter_mcp_module.DOCUMENT_ID = DOCUMENT_ID
         jupyter_mcp_module.DOCUMENT_TOKEN = DOCUMENT_TOKEN
         
+        logger.info(f"Synced globals - DOCUMENT_TOKEN: {'***' if DOCUMENT_TOKEN else 'None'}, RUNTIME_TOKEN: {'***' if RUNTIME_TOKEN else 'None'}")
+        logger.info(f"Synced globals - DOCUMENT_URL: {DOCUMENT_URL}, RUNTIME_URL: {RUNTIME_URL}")
+        
     except Exception as e:
         logger.debug(f"Error syncing globals: {e}")
 
 
-# Compose the tools on import
-_compose_jupyter_tools()
+# Compose the tools on import - wrapped in try/except to prevent startup failure
+try:
+    _compose_jupyter_tools()
+except Exception as e:
+    logger.error(f"Failed to compose jupyter tools during import: {e}")
+    # Log current earthdata tools
+    earthdata_tools = list(mcp._tool_manager._tools.keys())
+    logger.info(f"Continuing with earthdata-only tools: {earthdata_tools}")
 
 
 @mcp.tool()
@@ -309,9 +350,9 @@ else:
     # Use the composed jupyter tool to add and execute the code cell
     try:
         # Check if jupyter tools are available (they should be via composition)
-        if 'jupyter_append_execute_code_cell' in mcp._tool_manager._tools:
+        if 'append_execute_code_cell' in mcp._tool_manager._tools:
             # Get the jupyter tool function
-            jupyter_tool = mcp._tool_manager._tools['jupyter_append_execute_code_cell']
+            jupyter_tool = mcp._tool_manager._tools['append_execute_code_cell']
             
             # Execute the jupyter tool to add and run the download code
             # Note: In practice, this would be called by the MCP client
@@ -643,8 +684,16 @@ def start_command(
     DOCUMENT_ID = document_id
     DOCUMENT_TOKEN = document_token
 
-    # Sync with jupyter module if available
+    # Sync with jupyter module if available - this ensures tokens are properly set
     _sync_jupyter_globals()
+    
+    # Re-compose tools with updated configuration to ensure authentication works
+    if jupyter_mcp_module:
+        logger.info("Re-syncing jupyter tools with updated configuration...")
+        try:
+            _compose_jupyter_tools()
+        except Exception as e:
+            logger.error(f"Error re-composing tools with updated config: {e}")
 
     # Initialize jupyter kernel if specified and jupyter module is available
     if (START_NEW_RUNTIME or RUNTIME_ID) and jupyter_mcp_module:
@@ -660,6 +709,10 @@ def start_command(
             logger.error(f"Failed to start kernel on startup: {e}")
 
     logger.info(f"Starting Earthdata-Jupyter Composed MCP Server with transport: {transport}")
+    
+    # Log all available tools at startup
+    all_tools = list(mcp._tool_manager._tools.keys())
+    logger.info(f"Server starting with {len(all_tools)} tools available: {all_tools}")
 
     if transport == "stdio":
         mcp.run(transport="stdio")

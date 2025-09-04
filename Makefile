@@ -54,7 +54,23 @@ jupyterlab:
 		--port 8888 \
 		--ip 0.0.0.0 \
 		--ServerApp.root_dir ./dev/content \
-		--IdentityProvider.token MY_TOKEN
+		--IdentityProvider.token=""
+
+start: ## start the earthdata mcp server with streamable-http transport
+	@exec echo
+	@exec echo curl http://localhost:4040/api/healthz
+	@exec echo
+	@exec echo 👉 Define in your favorite mcp client the server http://localhost:4040/mcp
+	@exec echo
+	earthdata-mcp-server start \
+	  --transport streamable-http \
+	  --document-url http://localhost:8888 \
+	  --document-id notebook.ipynb \
+	  --document-token MY_TOKEN \
+	  --runtime-url http://localhost:8888 \
+	  --start-new-runtime true \
+	  --runtime-token MY_TOKEN \
+	  --port 4040
 
 publish-pypi: # publish the pypi package
 	git clean -fdx && \
