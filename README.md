@@ -64,7 +64,7 @@ jupyter lab --port 8888 --IdentityProvider.token MY_TOKEN --ip 0.0.0.0
 
 > [!NOTE]
 > 
-> The `EARTHDATA_USERNAME` and `EARTHDATA_PASSWORD` environment variables are used for NASA Earthdata authentication to download datasets via the `earthaccess` library. See [NASA Earthdata Authentication](#nasa-earthdata-authentication) for more details.
+> The `EARTHDATA_USERNAME` and `EARTHDATA_PASSWORD` environment variables are used for NASA Earthdata authentication to download datasets via the `earthaccess` library. See [NASA Earthdata Authentication](./docs/authentication.md) for more details.
 
 #### MacOS and Windows
 
