@@ -225,7 +225,7 @@ def search_earth_datagranules(short_name: str, count: int, temporal: tuple | Non
 @mcp.tool()
 async def download_earth_data_granules(
     folder_name: str, short_name: str, count: int, temporal: tuple | None = None, bounding_box: tuple | None = None
-) -> str:
+) -> list:
     """Download Earth data granules from NASA Earth Data and add code to a Jupyter notebook.
 
     This tool uses the composed jupyter tools to add a code cell that downloads Earth data granules.
@@ -238,9 +238,9 @@ async def download_earth_data_granules(
         temporal: (Optional) Temporal range in the format (date_from, date_to).
         bounding_box: (Optional) Bounding box in the format (lower_left_lon, lower_left_lat,
         upper_right_lon, upper_right_lat).
-
+        
     Returns:
-        str: Success message with download details
+        result: Result of the jupyter tool call to add and execute the code cell.
     """
     logger.info(f"Preparing to download Earth data granules: {short_name}")
 
@@ -253,7 +253,8 @@ async def download_earth_data_granules(
         search_params["bounding_box"] = bounding_box
 
     # Create the download code cell content
-    cell_content = f'''import earthaccess
+    cell_content = f'''
+import earthaccess
 import os
 
 # Authenticate with NASA Earthdata
@@ -263,67 +264,52 @@ if not auth:
 else:
     print("🔐 Successfully authenticated with NASA Earthdata")
     
-    # Search parameters
-    search_params = {search_params}
-    print(f"🔍 Searching for {{search_params['count']}} granules of {{search_params['short_name']}}")
+# Search parameters
+search_params = {search_params}
+print(f"🔍 Searching for {{search_params['count']}} granules of {{search_params['short_name']}}")
+
+# Search for data granules
+results = earthaccess.search_data(**search_params)
+print(f"📊 Found {{len(results)}} data granules")
+
+# Create download folder if it doesn't exist
+os.makedirs("./{folder_name}", exist_ok=True)
+print(f"📁 Created/verified folder: ./{folder_name}")
+
+# Download the data
+if results:
+    files = earthaccess.download(results, "./{folder_name}")
+    print(f"📥 Downloaded {{len(files)}} files to ./{folder_name}")
+    print("✅ Download completed successfully!")
     
-    # Search for data granules
-    results = earthaccess.search_data(**search_params)
-    print(f"📊 Found {{len(results)}} data granules")
-    
-    # Create download folder if it doesn't exist
-    os.makedirs("./{folder_name}", exist_ok=True)
-    print(f"📁 Created/verified folder: ./{folder_name}")
-    
-    # Download the data
-    if results:
-        files = earthaccess.download(results, "./{folder_name}")
-        print(f"📥 Downloaded {{len(files)}} files to ./{folder_name}")
-        print("✅ Download completed successfully!")
-        
-        # List downloaded files
-        if files:
-            print("\\n📋 Downloaded files:")
-            for i, file in enumerate(files[:5], 1):  # Show first 5 files
-                print(f"  {{i}}. {{os.path.basename(file)}}")
-            if len(files) > 5:
-                print(f"  ... and {{len(files) - 5}} more files")
-    else:
-        print("❌ No data granules found with the specified criteria")'''
+    # List downloaded files
+    if files:
+        print("\\n📋 Downloaded files:")
+        for i, file in enumerate(files[:5], 1):  # Show first 5 files
+            print(f"  {{i}}. {{os.path.basename(file)}}")
+        if len(files) > 5:
+            print(f"  ... and {{len(files) - 5}} more files")
+else:
+    print("❌ No data granules found with the specified criteria")'''
 
     # Use the composed jupyter tool to add and execute the code cell
     try:
-        # Check if jupyter tools are available (they should be via composition)
-        if 'append_execute_code_cell' in mcp._tool_manager._tools:
-            # Get the jupyter tool function
-            jupyter_tool = mcp._tool_manager._tools['append_execute_code_cell']
-            
-            # Execute the jupyter tool to add and run the download code
-            # Note: In practice, this would be called by the MCP client
-            logger.info("Adding download code cell to notebook using composed jupyter tools")
-            
-            # For now, return the code that would be executed
-            return f"""✅ Download code prepared for dataset: {short_name}
-📁 Target folder: ./{folder_name}
-📊 Granules to download: {count}
-⏱️  Temporal filter: {temporal if temporal else 'None'}
-🗺️  Bounding box: {bounding_box if bounding_box else 'None'}
+        # Execute the jupyter tool to add and run the download code
+        logger.info("Adding download code cell to notebook using composed jupyter tools")
 
-📝 Code cell ready to be added to notebook:
-{len(cell_content.split(chr(10)))} lines of download code prepared
+        result = await mcp.call_tool("append_execute_code_cell", {
+            "cell_source": cell_content,
+        })
 
-🔧 Use the jupyter tools to execute this download in your notebook."""
+        if result:
+            logger.info("Download code cell added and executed successfully")
         else:
-            logger.warning("Jupyter tools not available - returning code for manual execution")
-            return f"""⚠️  Jupyter tools not available in composition.
-Here's the download code to run manually:
+            logger.warning("Failed to add and execute download code cell")
 
-{cell_content}"""
-            
     except Exception as e:
-        logger.error(f"Error preparing download: {e}")
-        return f"❌ Error preparing download: {e}"
+        logger.error(f"Error adding download code cell: {e}")
 
+    return result
 
 @mcp.prompt()
 def download_analyze_global_sea_level() -> str:

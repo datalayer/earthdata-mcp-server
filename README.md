@@ -10,20 +10,19 @@
 
 # 🪐 ✨ Earthdata MCP Server
 
-[![Github Actions Status](https://github.com/datalayer/earthdata-mcp-server/workflows/Build/badge.svg)](https://github.com/datalayer/earthdata-mcp-server/actions/workflows/build.yml)
 [![PyPI - Version](https://img.shields.io/pypi/v/earthdata-mcp-server)](https://pypi.org/project/earthdata-mcp-server)
 [![smithery badge](https://smithery.ai/badge/@datalayer/earthdata-mcp-server)](https://smithery.ai/server/@datalayer/earthdata-mcp-server)
 
-Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server implementation that provides tools to interact with [NASA Earth Data](https://www.earthdata.nasa.gov/). It enables efficient dataset discovery and retrieval for Geospatial analysis.
+Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server implementation that provides tools to interact with [NASA Earth Data](https://www.earthdata.nasa.gov/). It enables efficient dataset discovery, retrieval and analysis for Geospatial analysis.
 
-🚀 **NEW**: This server now includes all [Jupyter MCP Server](https://github.com/datalayer/jupyter-mcp-server) tools through composition, providing a unified interface for both Earth data discovery and Jupyter notebook manipulation. All Jupyter MCP Server command-line options are also available for seamless integration.
+🚀 **NEW**: This server now includes all [Jupyter MCP Server](https://github.com/datalayer/jupyter-mcp-server) tools through composition, providing a unified interface for both Earth data discovery and analysis in Jupyter Notebooks.
 
 ## 🚀 Key Features
 
-- **Unified Interface**: Combines Earthdata and Jupyter tools
 - **Efficient Data Retrieval**: Search and download Earthdata datasets
+- **Unified Interface**: Combines Earthdata research and Jupyter notebook manipulation tools for analysis
 
-The following demo uses this MCP server to search for datasets and data granules on NASA Earthdata, to download the data in Jupyter and to run further analysis.
+The following demo uses this MCP server to search for datasets and data granules on NASA Earthdata, download the data in Jupyter and run further analysis.
 
 <div>
   <a href="https://www.loom.com/share/c2b5b05f548d4f1492d5c107f0c48dbc">
@@ -36,7 +35,7 @@ The following demo uses this MCP server to search for datasets and data granules
 
 ## 🏁 Getting Started
 
-For comprehensive setup instructions—including `Streamable HTTP` transport and advanced configuration—check out [thr documentation](https://jupyter-mcp-server.datalayer.tech/). Or, get started quickly with `JupyterLab` and `stdio` transport here below.
+For comprehensive setup instructions—including `Streamable HTTP` transport and advanced configuration—check out [the Jupyter MCP Server documentation](https://jupyter-mcp-server.datalayer.tech/). Or, get started quickly with `JupyterLab` and `stdio` transport here below.
 
 ### 1. Set Up Your Environment
 
@@ -62,6 +61,10 @@ jupyter lab --port 8888 --IdentityProvider.token MY_TOKEN --ip 0.0.0.0
 > The `DOCUMENT_ID` which is the path to the notebook you want to connect to, should be relative to the directory where JupyterLab was started.
 >
 > In a basic setup, `DOCUMENT_URL` and `RUNTIME_URL` are the same. `DOCUMENT_TOKEN`, and `RUNTIME_TOKEN` are also the same and is actually the Jupyter Token.
+
+> [!NOTE]
+> 
+> The `EARTHDATA_USERNAME` and `EARTHDATA_PASSWORD` environment variables are used for NASA Earthdata authentication to download datasets via the `earthaccess` library. See [NASA Earthdata Authentication](#nasa-earthdata-authentication) for more details.
 
 #### MacOS and Windows
 
@@ -91,7 +94,9 @@ jupyter lab --port 8888 --IdentityProvider.token MY_TOKEN --ip 0.0.0.0
         "DOCUMENT_TOKEN": "MY_TOKEN",
         "DOCUMENT_ID": "notebook.ipynb",
         "RUNTIME_URL": "http://host.docker.internal:8888",
-        "RUNTIME_TOKEN": "MY_TOKEN"
+        "RUNTIME_TOKEN": "MY_TOKEN",
+        "EARTHDATA_USERNAME": "your_username",
+        "EARTHDATA_PASSWORD": "your_password"
       }
     }
   }
@@ -127,43 +132,18 @@ jupyter lab --port 8888 --IdentityProvider.token MY_TOKEN --ip 0.0.0.0
         "DOCUMENT_TOKEN": "MY_TOKEN",
         "DOCUMENT_ID": "notebook.ipynb",
         "RUNTIME_URL": "http://localhost:8888",
-        "RUNTIME_TOKEN": "MY_TOKEN"
+        "RUNTIME_TOKEN": "MY_TOKEN",
+        "EARTHDATA_USERNAME": "your_username",
+        "EARTHDATA_PASSWORD": "your_password"
       }
     }
   }
 }
 ```
 
-
-## Connecting to NASA Earthdata
-
-To interact with NASA Earthdata, you need an Earthdata Login account. You can learn more and register for an account through the [Earthdata Login API portal](https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/earthdata-login-api).
-
-### Authentication
-
-This server uses your Earthdata Login credentials to authenticate with NASA Earthdata. You need to provide your username and password as environment variables.
-Generate and Earth data Token in one of the tabs. 
-
-In your terminal, you can set them like this:
-
-```bash
-export EARTHDATA_USERNAME="your_username"
-export EARTHDATA_PASSWORD="your_password"
-export EARTHDATA_TOKEN="your_token"
-```
-
-The server will automatically use these variables to authenticate your requests.
-
-## 📚 Documentation
-
-- [Architecture](./docs/architecture.md): Learn about the server composition pattern
-- [Authentication](./docs/authentication.md): How to authenticate with NASA Earthdata
-- [Tools](./docs/tools.md): Detailed documentation of available tools
-
-
 ## Tools
 
-The server offers **15 tools total**: 3 Earthdata-specific tools plus 12 Jupyter notebook manipulation tools (prefixed with `jupyter_`).
+The server offers **15 tools total**: 3 Earthdata-specific tools plus 12 Jupyter notebook manipulation tools.
 
 ### Earthdata Tools
 
@@ -202,20 +182,20 @@ The server offers **15 tools total**: 3 Earthdata-specific tools plus 12 Jupyter
 
 ### Jupyter Tools (Composed)
 
-The following Jupyter notebook manipulation tools are available with the `jupyter_` prefix:
+The following Jupyter notebook manipulation tools are available:
 
-- **`jupyter_append_markdown_cell`**: Add markdown cells to notebooks
-- **`jupyter_insert_markdown_cell`**: Insert markdown cells at specific positions
-- **`jupyter_overwrite_cell_source`**: Modify existing cell content
-- **`jupyter_append_execute_code_cell`**: Add and execute code cells
-- **`jupyter_insert_execute_code_cell`**: Insert and execute code cells at specific positions
-- **`jupyter_execute_cell_with_progress`**: Execute cells with progress monitoring
-- **`jupyter_execute_cell_simple_timeout`**: Execute cells with timeout
-- **`jupyter_execute_cell_streaming`**: Execute cells with streaming output
-- **`jupyter_read_all_cells`**: Read all notebook cells
-- **`jupyter_read_cell`**: Read specific notebook cells
-- **`jupyter_get_notebook_info`**: Get notebook metadata
-- **`jupyter_delete_cell`**: Delete notebook cells
+- **`append_markdown_cell`**: Add markdown cells to notebooks
+- **`insert_markdown_cell`**: Insert markdown cells at specific positions
+- **`overwrite_cell_source`**: Modify existing cell content
+- **`append_execute_code_cell`**: Add and execute code cells
+- **`insert_execute_code_cell`**: Insert and execute code cells at specific positions
+- **`execute_cell_with_progress`**: Execute cells with progress monitoring
+- **`execute_cell_simple_timeout`**: Execute cells with timeout
+- **`execute_cell_streaming`**: Execute cells with streaming output
+- **`read_all_cells`**: Read all notebook cells
+- **`read_cell`**: Read specific notebook cells
+- **`get_notebook_info`**: Get notebook metadata
+- **`delete_cell`**: Delete notebook cells
 
 For detailed documentation of the Jupyter tools, see the [Jupyter MCP Server documentation](https://github.com/datalayer/jupyter-mcp-server).
 
