@@ -127,11 +127,29 @@ The server offers 3 Earthdata tools.
     - `script`: Returns Python code to execute elsewhere.
   - max_manifest_items (int): Max items returned in `manifest` mode.
 
+#### How download works
+
+`download_earth_data_granules` always starts by searching for granules with your filters, then behaves based on `mode`:
+
+1. `manifest`
+   - Returns a structured preview (`items`) with IDs, titles, and links.
+   - Does not write files.
+   - Best first step for validating query scope.
+2. `download`
+   - Authenticates with Earthdata using environment credentials.
+   - Downloads matching granules directly to `folder_name` on the server runtime.
+   - Returns downloaded file paths.
+3. `script`
+   - Returns executable Python code that performs the same search + download.
+   - Best option when execution should happen in a notebook/runtime controlled by another MCP server.
+
 #### Recommended download strategy
 
 1. Use `mode="manifest"` first to inspect results safely.
 2. Use `mode="script"` when you want notebook-driven execution via `mcp-compose` + `jupyter-mcp-server`.
 3. Use `mode="download"` only when server-side file writes are intended.
+
+For a full composition example with `mcp-compose`, see [download workflow docs](./docs/download.md).
 
 ## Prompts
 
