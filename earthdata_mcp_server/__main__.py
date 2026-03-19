@@ -1,7 +1,7 @@
-# __main__.py
-# Entry point for the earthdata_mcp_server package
+"""Package entry point for ``python -m earthdata_mcp_server``."""
 
-from .server import start_command
+from .server import server
+
 
 if __name__ == "__main__":
-    start_command()
+    server()
