@@ -82,16 +82,17 @@ def test_download_mode_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) 
     monkeypatch.setattr(earthdata_server.earthaccess, "login", lambda **_: object())
     monkeypatch.setattr(earthdata_server.earthaccess, "download", lambda *_: fake_files)
 
-    out_dir = tmp_path / "downloads"
+    folder_name = "unit-test-downloads"
+    expected_out_dir = (earthdata_server.BASE_DOWNLOAD_DIR.resolve() / folder_name).resolve()
     result = earthdata_server.download_earth_data_granules(
-        folder_name=str(out_dir),
+        folder_name=folder_name,
         short_name="TEST",
         count=2,
         mode="download",
     )
     assert result["mode"] == "download"
     assert result["downloaded_count"] == 2
-    assert result["output_dir"] == str(out_dir)
+    assert result["output_dir"] == str(expected_out_dir)
     assert result["files"] == fake_files
 
 
