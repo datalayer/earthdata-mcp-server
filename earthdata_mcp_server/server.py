@@ -13,6 +13,7 @@ from starlette.applications import Starlette
 from starlette.middleware.cors import CORSMiddleware
 
 import earthaccess
+import pprint
 
 
 ###############################################################################
@@ -95,18 +96,21 @@ def _granule_to_manifest_item(granule: Any, index: int) -> dict[str, Any]:
 
 
 def _build_download_script(folder_name: str, search_params: dict[str, Any]) -> str:
+    folder_name_literal = repr(folder_name)
+    search_params_literal = pprint.pformat(search_params, indent=4)
     return f"""import os
 
 import earthaccess
 
 earthaccess.login(strategy=\"environment\")
 
-search_params = {search_params}
+search_params = {search_params_literal}
 results = earthaccess.search_data(**search_params)
 
-os.makedirs(\"{folder_name}\", exist_ok=True)
-files = earthaccess.download(results, \"{folder_name}\")
-print(f\"Downloaded {{len(files)}} files to {folder_name}\")
+folder_name = {folder_name_literal}
+os.makedirs(folder_name, exist_ok=True)
+files = earthaccess.download(results, folder_name)
+print(f\"Downloaded {{len(files)}} files to {{folder_name}}\")
 """
 
 
