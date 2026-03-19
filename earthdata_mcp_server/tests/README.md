@@ -10,34 +10,28 @@
 
 # Earthdata MCP Server Tests
 
-This directory contains tests for the earthdata-mcp-server composition functionality.
+This directory contains smoke tests for Earthdata MCP Server.
 
 ## Test Files
 
 ### `test_composition.py`
 
-Validates the integration of earthdata and jupyter MCP server tools through composition:
+Validates Earthdata server tool registration and download mode validation:
 
-- **Server Composition**: Tests that the server correctly combines tools from both earthdata and jupyter-mcp-server
-- **Tool Validation**: Verifies all expected tools are present with correct naming conventions  
-- **CLI Integration**: Tests that all click commands and options from jupyter-mcp-server are available
-- **Global Variable Sync**: Validates that configuration variables are properly synchronized between servers
-- **Namespace Safety**: Ensures no naming conflicts between tool sets
-- **Graceful Degradation**: Tests that the server works even if jupyter-mcp-server is unavailable
+- **Tool Validation**: Verifies expected Earthdata tools are registered.
+- **Input Validation**: Verifies invalid download modes are rejected.
 
 ### `test_cli_options.py`
 
-Validates the command-line interface integration from jupyter-mcp-server:
+Validates Earthdata command-line interface:
 
-- **CLI Option Completeness**: Verifies all 10 jupyter CLI options are available in earthdata server
-- **Command Availability**: Tests that all commands (`start`, `connect`, `stop`) are functional
-- **Connect Command Options**: Validates specific options for the connect command
-- **Environment Variable Support**: Confirms that global variables support environment-based configuration
+- **Command Availability**: Verifies `start` command is available.
+- **Option Availability**: Verifies `--transport` and `--port` on `start`.
 
 #### Running the Tests
 
 ```bash
-# Run the composition validation
+# Run tool and mode validation
 python earthdata_mcp_server/tests/test_composition.py
 
 # Run the CLI options validation  
@@ -54,15 +48,10 @@ python -m unittest earthdata_mcp_server.tests.test_composition
 
 **test_composition.py** should validate:
 - ✅ 3 Earthdata tools: `search_earth_datasets`, `search_earth_datagranules`, `download_earth_data_granules`
-- ✅ 12 Jupyter tools: All prefixed with `jupyter_`
-- ✅ 3 Click commands: `start`, `connect`, `stop`
-- ✅ 9 Global variables: All jupyter configuration options synchronized
-- ✅ Total of 15 tools available in the composed server
+- ✅ Invalid download mode raises an error
 
 **test_cli_options.py** should validate:
-- ✅ 10 CLI options available in `start` command
-- ✅ 3 commands available: `start`, `connect`, `stop`
-- ✅ 8 CLI options available in `connect` command  
-- ✅ Environment variable support through global variables
+- ✅ `start` command is present
+- ✅ `--transport` and `--port` are present in `start --help`
 
 # 🪐 ✨ Earthdata MCP Server

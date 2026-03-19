@@ -13,3 +13,5 @@ To access NASA Earthdata resources, you need to authenticate with NASA's Earthda
 
 The [earthaccess](https://pypi.org/project/earthaccess/) library is used to download data from NASA Earthdata.
 You need to provide your Earthdata Login credentials: `EARTHDATA_USERNAME` and `EARTHDATA_PASSWORD` via environment variables.
+
+For detailed behavior of `download_earth_data_granules` (including `manifest`, `download`, and `script` modes) and composition with `mcp-compose` + `jupyter-mcp-server`, see [download workflow](./download.md).

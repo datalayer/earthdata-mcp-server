@@ -23,12 +23,11 @@ classifiers = [
 dependencies = [
     "earthaccess",
     "mcp[cli]>=1.2.1",
-    "jupyter-mcp-server>=0.12.0,<1",
     "rich"
 ]
 
 [project.optional-dependencies]
-test = ["ipykernel", "jupyter_server>=1.6,<3", "pytest>=7.0"]
+test = ["pytest>=7.0"]
 lint = ["mdformat>0.7", "mdformat-gfm>=0.3.5", "ruff"]
 typing = ["mypy>=0.990"]
 
@@ -64,6 +63,10 @@ strict_equality = true
 warn_unused_configs = true
 warn_unused_ignores = true
 warn_redundant_casts = true
+
+[[tool.mypy.overrides]]
+module = ["pytest"]
+ignore_missing_imports = true
 
 [tool.ruff]
 target-version = "py39"

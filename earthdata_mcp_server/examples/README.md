@@ -10,24 +10,24 @@
 
 # Earthdata MCP Server Examples
 
-This directory contains examples demonstrating the integrated capabilities of the earthdata-mcp-server composition.
+This directory contains examples demonstrating Earthdata-only capabilities.
 
 ## Example Files
 
 ### `workflow_example.py`
 
-Demonstrates a complete Earth science analysis workflow using both Earthdata and Jupyter tools:
+Demonstrates an Earth science workflow using Earthdata tools:
 
 - **Dataset Discovery**: Search for NASA Earth science datasets using earthdata tools
-- **Notebook Generation**: Create analysis notebooks using jupyter tools  
-- **Integrated Workflow**: Show how both tool sets work together for complete analysis pipelines
+- **Manifest-first downloads**: Inspect granules before retrieving files
+- **Script generation**: Produce code for execution in an external composed runtime
 
 #### Features Demonstrated
 
-1. **Tool Composition**: How 14 total tools (2 Earthdata + 12 Jupyter) work together
+1. **Earthdata scope**: How discovery and granule retrieval work together
 2. **Search Capabilities**: Finding datasets for sea level, temperature, and gravity studies
-3. **Notebook Creation**: Generating markdown and code cells programmatically
-4. **Analysis Workflows**: Complete pipelines from data discovery to visualization
+3. **Download Modes**: `manifest`, `download`, and `script`
+4. **Composition Ready**: Script output can be run with `mcp-compose` and `jupyter-mcp-server`
 
 #### Running the Example
 
@@ -40,9 +40,9 @@ python -m earthdata_mcp_server.examples.workflow_example
 
 The example demonstrates:
 - 🌍 Earthdata dataset search with various keywords
-- 📓 Jupyter notebook cell generation and execution simulation  
-- 🔄 Integration workflows showing the power of composition
-- 📊 Analysis pipelines for different Earth science domains
+- 📋 Manifest previews before download
+- 🧩 Script output that can be executed in a composed notebook stack
+- 📊 Analysis-ready retrieval workflows
 
 #### MCP Client Usage
 
