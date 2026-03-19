@@ -18,6 +18,32 @@ import pprint
 
 ###############################################################################
 
+# Base directory under which all downloads will be stored. User-supplied
+# folder names are interpreted as subdirectories of this path.
+BASE_DOWNLOAD_DIR = Path.cwd() / "earthdata_downloads"
+
+
+def _get_safe_output_dir(folder_name: str) -> Path:
+    """
+    Return a filesystem path for downloads that is safely constrained under
+    BASE_DOWNLOAD_DIR. Reject absolute paths and directory traversal.
+    """
+    base = BASE_DOWNLOAD_DIR.resolve()
+
+    try:
+        if folder_name:
+            candidate = (base / folder_name).resolve()
+        else:
+            candidate = base
+    except Exception as exc:  # Defensive: malformed paths, etc.
+        raise ValueError("Invalid folder_name for download directory.") from exc
+
+    # Ensure the resolved path is under the base directory.
+    if candidate == base or base in candidate.parents:
+        return candidate
+
+    raise ValueError("Invalid folder_name: path traversal outside base directory is not allowed.")
+
 
 class FastMCPWithCORS(FastMCP):
     def streamable_http_app(self) -> Starlette:
@@ -242,7 +268,7 @@ def download_earth_data_granules(
             "download_folder": folder_name,
         }
 
-    output_dir = Path(folder_name)
+    output_dir = _get_safe_output_dir(folder_name)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
