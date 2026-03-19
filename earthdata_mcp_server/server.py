@@ -137,7 +137,7 @@ def search_earth_datasets(search_keywords: str, count: int, temporal: tuple | No
     if bounding_box and len(bounding_box) == 4:
         search_params["bounding_box"] = bounding_box
 
-    datasets = earthaccess.search_datasets(**search_params)
+    datasets = earthaccess.search_datasets(**search_params)  # type: ignore[arg-type]
 
     datasets_info = [
         {
@@ -181,7 +181,7 @@ def search_earth_datagranules(short_name: str, count: int, temporal: tuple | Non
     if bounding_box and len(bounding_box) == 4:
         search_params["bounding_box"] = bounding_box
 
-    datagranules = earthaccess.search_data(**search_params)
+    datagranules = earthaccess.search_data(**search_params)  # type: ignore[arg-type]
     
     return datagranules
 
@@ -308,7 +308,7 @@ def server():
 def start_command(
     transport: str,
     port: int,
-):
+) -> None:
     """Start the Earthdata MCP server with a transport."""
 
     logger.info("Starting Earthdata MCP Server with transport: %s", transport)
