@@ -20,19 +20,28 @@ classifiers = [
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
 ]
+description = "NASA Earthdata search and download over MCP, as a reactor_mcp_server extension."
 dependencies = [
+    "click",
     "earthaccess",
-    "mcp[cli]>=1.2.1",
-    "rich"
+    # The MCP SDK 2 line, which reactor_mcp_server is built on.
+    "mcp>=2,<3",
+    "reactor_mcp_server>=1.0.4",
+    "uvicorn",
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7.0"]
+test = ["pytest>=7.0", "httpx"]
 lint = ["mdformat>0.7", "mdformat-gfm>=0.3.5", "ruff"]
 typing = ["mypy>=0.990"]
 
 [project.scripts]
 earthdata-mcp-server = "earthdata_mcp_server.server:server"
+
+[project.entry-points."reactor.mcp.extensions"]
+# Any reactor_mcp_server host that has this package installed serves the
+# toolset to a client that asks for it: /mcp?earthdata.
+earthdata = "earthdata_mcp_server.extension:extension"
 
 [project.license]
 file = "LICENSE"
@@ -65,11 +74,11 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 
 [[tool.mypy.overrides]]
-module = ["pytest"]
+module = ["pytest", "reactor", "reactor.*", "reactor_mcp_server", "reactor_mcp_server.*", "earthaccess"]
 ignore_missing_imports = true
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 100
 
 [tool.ruff.lint]
@@ -100,3 +109,5 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # S101 Use of `assert` detected
 "earthdata_mcp_server/tests/*" = ["S101"]
+# An example talks to whoever runs it.
+"earthdata_mcp_server/examples/*" = ["T201"]

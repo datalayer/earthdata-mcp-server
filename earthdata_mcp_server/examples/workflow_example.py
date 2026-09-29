@@ -1,38 +1,46 @@
 #!/usr/bin/env python3
+# Copyright (c) 2023-2026 Datalayer, Inc.
+#
+# BSD 3-Clause License
+
 """Earthdata MCP Server workflow example.
 
-This script demonstrates Earthdata-only usage patterns:
+This script calls the extension's tools directly, without a server:
 1. Discover datasets
 2. Inspect granules in manifest mode
-3. Generate a download script for composed runtimes (mcp-compose + jupyter-mcp-server)
+3. Generate a download script to run in a notebook or a code sandbox
 """
 
-from earthdata_mcp_server import server as earthdata_server
+import asyncio
+
+from earthdata_mcp_server import EarthdataExtension
+
+SHORT_NAME = "TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.4"
 
 
-def main() -> None:
+async def main() -> None:
+    earthdata = EarthdataExtension()
     print("== Earthdata MCP Example ==")
 
-    datasets = earthdata_server.search_earth_datasets(
+    datasets = await earthdata.search_earth_datasets(
         search_keywords="sea level",
         count=3,
         temporal=("2020-01-01", "2025-01-01"),
-        bounding_box=None,
     )
     print(f"Found datasets: {len(datasets)}")
 
-    manifest = earthdata_server.download_earth_data_granules(
+    manifest = await earthdata.download_earth_data_granules(
         folder_name="downloads/sea_level",
-        short_name="TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.4",
+        short_name=SHORT_NAME,
         count=5,
         mode="manifest",
         max_manifest_items=3,
     )
     print(f"Manifest results: {manifest['returned']} / {manifest['total_found']}")
 
-    script_result = earthdata_server.download_earth_data_granules(
+    script_result = await earthdata.download_earth_data_granules(
         folder_name="downloads/sea_level",
-        short_name="TELLUS_GRAC-GRFO_MASCON_CRI_GRID_RL06.4",
+        short_name=SHORT_NAME,
         count=5,
         mode="script",
     )
@@ -43,4 +51,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

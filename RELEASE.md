@@ -1,58 +1,62 @@
 <!--
-  ~ Copyright (c) 2023-2024 Datalayer, Inc.
+  ~ Copyright (c) 2023-2026 Datalayer, Inc.
   ~
   ~ BSD 3-Clause License
 -->
 
 # Making a new release of earthdata_mcp_server
 
-The extension can be published to `PyPI` manually or using the [Jupyter Releaser](https://github.com/jupyter-server/jupyter_releaser).
+A release is a tag. Pushing `vX.Y.Z` runs the [Release](.github/workflows/release.yaml)
+workflow, which:
 
-## Manual release
+1. checks the tag names the version in `earthdata_mcp_server/__version__.py`, and fails otherwise;
+2. skips the publish when that version is already on PyPI;
+3. builds the sdist and the wheel, and publishes them to PyPI with no stored token;
+4. creates the GitHub release, with generated notes.
 
-### Python package
-
-This repository can be distributed as Python
-package. All of the Python
-packaging instructions in the `pyproject.toml` file to wrap your extension in a
-Python package. Before generating a package, we first need to install `build`.
+## Cutting one
 
 ```bash
-pip install build twine
+# 1. Set the version, and say what changed in CHANGELOG.md.
+$EDITOR earthdata_mcp_server/__version__.py CHANGELOG.md
+git commit -am "Release 0.5.1" && git push origin main
+
+# 2. Tag it — `make release` refuses a dirty tree — and push the tag.
+make release
+git push origin v0.5.1
 ```
 
-To create a Python source package (`.tar.gz`) and the binary package (`.whl`) in the `dist/` directory, do:
+Tag from `main`, after the [Build](.github/workflows/build.yaml) workflow is green
+on the commit being tagged: it runs the same build and checks the wheel installs
+and is discovered by a `reactor_mcp_server` host.
+
+## Trusted publishing setup
+
+PyPI trusts the workflow file rather than a token (OIDC trusted publishing). Once,
+on the `earthdata-mcp-server` project on PyPI, add a trusted publisher with:
+
+| Field | Value |
+| --- | --- |
+| Owner | `datalayer` |
+| Repository | `earthdata-mcp-server` |
+| Workflow | `release.yaml` |
+| Environment | `pypi` |
+
+and create the `pypi` environment in the repository's settings on GitHub.
+
+## By hand
+
+When the workflow cannot run, build from a clean checkout of the tag and upload:
 
 ```bash
+git clean -fdx
+python -m pip install build twine
 python -m build
-```
-
-Then to upload the package to PyPI, do:
-
-```bash
 twine upload dist/*
 ```
 
-## Automated releases with the Jupyter Releaser
+## Docker image
 
-> [!NOTE]
-> The extension repository is compatible with the Jupyter Releaser. But
-> the GitHub repository and PyPI may need to be properly set up. Please
-> follow the instructions of the Jupyter Releaser [checklist](https://jupyter-releaser.readthedocs.io/en/latest/how_to_guides/convert_repo_from_repo.html).
-
-Here is a summary of the steps to cut a new release:
-
-- Go to the Actions panel
-- Run the "Step 1: Prep Release" workflow
-- Check the draft changelog
-- Run the "Step 2: Publish Release" workflow
-
-> [!NOTE]
-> Check out the [workflow documentation](https://jupyter-releaser.readthedocs.io/en/latest/get_started/making_release_from_repo.html)
-> for more information.
-
-## Publishing to `conda-forge`
-
-If the package is not on conda forge yet, check the documentation to learn how to add it: https://conda-forge.org/docs/maintainer/adding_pkgs.html
-
-Otherwise a bot should pick up the new version publish to PyPI, and open a new PR on the feedstock repository automatically.
+```bash
+make build-docker push-docker   # tags datalayer/earthdata-mcp-server:<version> and :latest
+```

@@ -1,323 +1,65 @@
-# Copyright (c) 2023-2024 Datalayer, Inc.
+# Copyright (c) 2023-2026 Datalayer, Inc.
 #
 # BSD 3-Clause License
 
+"""The ``earthdata-mcp-server`` command: the Earthdata extension, served alone.
+
+The tools live in :mod:`earthdata_mcp_server.extension`, as a
+`reactor_mcp_server` extension. This command builds a host with that one
+extension on it — the toolset on by default, since there is nothing else to
+choose — and serves it over stdio or streamable HTTP.
+
+To serve Earthdata beside other extensions, install this package next to any
+`reactor_mcp_server` host instead; it is discovered there and served to a
+client that asks for it (``/mcp?earthdata``).
+
+@module earthdata_mcp_server.server
+"""
+
+from __future__ import annotations
+
 import logging
-from pathlib import Path
-from typing import Any
 
 import click
-import uvicorn
-from mcp.server.fastmcp import FastMCP
+from reactor_mcp_server import McpHost, build_host, create_mcp_app
 from starlette.applications import Starlette
-from starlette.middleware.cors import CORSMiddleware
 
-import earthaccess
-import pprint
-
-
-###############################################################################
-
-# Base directory under which all downloads will be stored. User-supplied
-# folder names are interpreted as subdirectories of this path.
-BASE_DOWNLOAD_DIR = Path.cwd() / "earthdata_downloads"
-
-
-def _get_safe_output_dir(folder_name: str) -> Path:
-    """
-    Return a filesystem path for downloads that is safely constrained under
-    BASE_DOWNLOAD_DIR. Reject absolute paths and directory traversal.
-    """
-    base = BASE_DOWNLOAD_DIR.resolve()
-
-    try:
-        if folder_name:
-            candidate = (base / folder_name).resolve()
-        else:
-            candidate = base
-    except Exception as exc:  # Defensive: malformed paths, etc.
-        raise ValueError("Invalid folder_name for download directory.") from exc
-
-    # Ensure the resolved path is under the base directory.
-    if candidate == base or base in candidate.parents:
-        return candidate
-
-    raise ValueError("Invalid folder_name: path traversal outside base directory is not allowed.")
-
-
-class FastMCPWithCORS(FastMCP):
-    def streamable_http_app(self) -> Starlette:
-        """Return StreamableHTTP server app with CORS middleware
-        See: https://github.com/modelcontextprotocol/python-sdk/issues/187
-        """
-        # Get the original Starlette app
-        app = super().streamable_http_app()
-        
-        # Add CORS middleware
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],  # In production, should set specific domains
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )        
-        return app
-    
-    def sse_app(self, mount_path: str | None = None) -> Starlette:
-        """Return SSE server app with CORS middleware"""
-        # Get the original Starlette app
-        app = super().sse_app(mount_path)
-        # Add CORS middleware
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],  # In production, should set specific domains
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )        
-        return app
-
-
-# Keep this server focused on Earthdata only.
-# If users need notebook/runtime tools they should compose with jupyter-mcp-server via mcp-compose.
-mcp = FastMCPWithCORS("earthdata")
+from earthdata_mcp_server.extension import EarthdataExtension
 
 logger = logging.getLogger(__name__)
 
-
-def _build_search_params(
-    short_name: str,
-    count: int,
-    temporal: tuple | None,
-    bounding_box: tuple | None,
-) -> dict[str, Any]:
-    search_params: dict[str, Any] = {
-        "short_name": short_name,
-        "count": count,
-        "cloud_hosted": True,
-    }
-    if temporal and len(temporal) == 2:
-        search_params["temporal"] = temporal
-    if bounding_box and len(bounding_box) == 4:
-        search_params["bounding_box"] = bounding_box
-    return search_params
+#: What the server calls itself to a client.
+SERVER_NAME = "earthdata"
 
 
-def _granule_to_manifest_item(granule: Any, index: int) -> dict[str, Any]:
-    if isinstance(granule, dict):
-        title = granule.get("title") or granule.get("id") or "unknown"
-        granule_id = granule.get("id") or granule.get("native-id") or f"granule-{index + 1}"
-        links = granule.get("links") or []
-    else:
-        title = getattr(granule, "title", None) or str(granule)
-        granule_id = getattr(granule, "id", None) or f"granule-{index + 1}"
-        links = getattr(granule, "data_links", None) or []
-
-    return {
-        "index": index + 1,
-        "id": str(granule_id),
-        "title": str(title),
-        "links": [str(link) for link in links[:5]],
-    }
+def earthdata_host() -> McpHost:
+    """A started host serving the Earthdata toolset, on without asking."""
+    return build_host([EarthdataExtension(default=True)], name=SERVER_NAME)
 
 
-def _build_download_script(folder_name: str, search_params: dict[str, Any]) -> str:
-    folder_name_literal = repr(folder_name)
-    search_params_literal = pprint.pformat(search_params, indent=4)
-    return f"""import os
+def http_app(host: McpHost, path: str = "/mcp") -> Starlette:
+    """The host over streamable HTTP, open to browser clients.
 
-import earthaccess
-
-earthaccess.login(strategy=\"environment\")
-
-search_params = {search_params_literal}
-results = earthaccess.search_data(**search_params)
-
-folder_name = {folder_name_literal}
-os.makedirs(folder_name, exist_ok=True)
-files = earthaccess.download(results, folder_name)
-print(f\"Downloaded {{len(files)}} files to {{folder_name}}\")
-"""
-
-
-@mcp.tool()
-def search_earth_datasets(search_keywords: str, count: int, temporal: tuple | None, bounding_box: tuple | None) -> list:
+    CORS is on for any origin: a browser-based MCP client served from another
+    origin cannot connect otherwise. A deployment exposed beyond one machine
+    should put this behind a proxy that decides who may reach it.
     """
-    Search for datasets on NASA Earthdata.
-    
-    Args:
-    search_keywords: Keywords to search for in the dataset titles.
-    count: Number of datasets to return.
-    temporal: (Optional) Temporal range in the format (date_from, date_to).
-    bounding_box: (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
-        
-    Returns:
-    list
-        List of dataset abstracts.
-    """
+    from starlette.middleware.cors import CORSMiddleware
 
-    search_params = {
-        "keyword": search_keywords,
-        "count": count,
-        "cloud_hosted": True
-    }
-
-    if temporal and len(temporal) == 2:
-        search_params["temporal"] = temporal
-    if bounding_box and len(bounding_box) == 4:
-        search_params["bounding_box"] = bounding_box
-
-    datasets = earthaccess.search_datasets(**search_params)  # type: ignore[arg-type]
-
-    datasets_info = [
-        {
-            "Title": dataset.get_umm("EntryTitle"), 
-            "ShortName": dataset.get_umm("ShortName"), 
-            "Abstract": dataset.abstract(), 
-            "Data Type": dataset.data_type(), 
-            "DOI": dataset.get_umm("DOI"),
-            "LandingPage": dataset.landing_page(),
-            "DatasetViz": dataset._filter_related_links("GET RELATED VISUALIZATION"),
-            "DatasetURL": dataset._filter_related_links("GET DATA"),
-         } for dataset in datasets]
-
-    return datasets_info
-
-
-@mcp.tool()
-def search_earth_datagranules(short_name: str, count: int, temporal: tuple | None, bounding_box: tuple | None) -> list:
-    """
-    Search for data granules on NASA Earthdata.
-    
-    Args:
-    short_name: Short name of the dataset.
-    count: Number of data granules to return.
-    temporal: (Optional) Temporal range in the format (date_from, date_to).
-    bounding_box: (Optional) Bounding box in the format (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
-        
-    Returns:
-    list
-        List of data granules.
-    """
-    
-    search_params = {
-        "short_name": short_name,
-        "count": count,
-        "cloud_hosted": True
-    }
-
-    if temporal and len(temporal) == 2:
-        search_params["temporal"] = temporal
-    if bounding_box and len(bounding_box) == 4:
-        search_params["bounding_box"] = bounding_box
-
-    datagranules = earthaccess.search_data(**search_params)  # type: ignore[arg-type]
-    
-    return datagranules
-
-
-@mcp.tool()
-def download_earth_data_granules(
-    folder_name: str,
-    short_name: str,
-    count: int,
-    temporal: tuple | None = None,
-    bounding_box: tuple | None = None,
-    mode: str = "manifest",
-    max_manifest_items: int = 20,
-) -> dict[str, Any]:
-    """Search and optionally download Earthdata granules.
-
-    Modes:
-    - manifest: return searchable granule metadata, no download performed.
-    - download: download files immediately to folder_name on this server.
-    - script: return a Python script that can be executed by a composed runtime.
-    """
-    allowed_modes = {"manifest", "download", "script"}
-    if mode not in allowed_modes:
-        raise ValueError(
-            f"Invalid mode '{mode}'. Use one of: {sorted(allowed_modes)}."
-        )
-    if max_manifest_items < 1:
-        raise ValueError("max_manifest_items must be >= 1.")
-
-    logger.info("Preparing Earthdata granule operation for '%s' in mode '%s'", short_name, mode)
-    search_params = _build_search_params(short_name, count, temporal, bounding_box)
-
-    if mode == "script":
-        return {
-            "mode": mode,
-            "search_params": search_params,
-            "folder_name": folder_name,
-            "script": _build_download_script(folder_name, search_params),
-            "hint": "Use this script with jupyter-mcp-server through mcp-compose for notebook-driven downloads.",
-        }
-
-    results = earthaccess.search_data(**search_params)
-    total_found = len(results)
-
-    if mode == "manifest":
-        limited = results[:max_manifest_items]
-        return {
-            "mode": mode,
-            "search_params": search_params,
-            "total_found": total_found,
-            "returned": len(limited),
-            "items": [_granule_to_manifest_item(granule, idx) for idx, granule in enumerate(limited)],
-            "truncated": total_found > max_manifest_items,
-            "download_folder": folder_name,
-        }
-
-    output_dir = _get_safe_output_dir(folder_name)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    try:
-        # Prefer environment credentials for non-interactive server contexts.
-        earthaccess.login(strategy="environment")
-    except Exception as exc:
-        raise RuntimeError(
-            "Earthdata authentication failed. Set EARTHDATA_USERNAME and EARTHDATA_PASSWORD."
-        ) from exc
-
-    files = earthaccess.download(results, str(output_dir))
-    return {
-        "mode": mode,
-        "search_params": search_params,
-        "total_found": total_found,
-        "downloaded_count": len(files),
-        "output_dir": str(output_dir),
-        "files": [str(Path(file_path)) for file_path in files],
-    }
-
-@mcp.prompt()
-def download_analyze_global_sea_level() -> str:
-    """Generate a prompt for downloading and analyzing Global Mean Sea Level Trend dataset."""
-    return (
-        "I want to analyze the Global Mean Sea Level Trend dataset. "
-        "First call download_earth_data_granules with mode='script' to generate a reproducible script, "
-        "then execute it in a notebook runtime composed via mcp-compose with jupyter-mcp-server. "
-        "After the data is available, produce a concise trend analysis with at least one visualization."
+    app = create_mcp_app(host, path=path)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["mcp-session-id"],
     )
-
-
-@mcp.prompt()
-def sealevel_rise_dataset(start_year: int, end_year: int) -> str:
-    return f"I’m interested in datasets about sealevel rise worldwide from {start_year} to {end_year}. Can you list relevant datasets?"
-
-
-@mcp.prompt()
-def ask_datasets_format() -> str:
-    return "What are the data formats of those datasets?"
-
-
-###############################################################################
-# Commands.
+    return app
 
 
 @click.group()
-def server():
+def server() -> None:
     """Manages Earthdata MCP Server."""
-    pass
 
 
 @server.command("start")
@@ -329,31 +71,34 @@ def server():
     help="The transport to use for the MCP server. Defaults to 'stdio'.",
 )
 @click.option(
+    "--host",
+    "bind",
+    envvar="HOST",
+    default="0.0.0.0",  # noqa: S104 - a server, reached from outside its container
+    help="The interface to bind for the Streamable HTTP transport.",
+)
+@click.option(
     "--port",
     envvar="PORT",
     type=click.INT,
     default=4040,
     help="The port to use for the Streamable HTTP transport. Ignored for stdio transport.",
 )
-def start_command(
-    transport: str,
-    port: int,
-) -> None:
+def start_command(transport: str, bind: str, port: int) -> None:
     """Start the Earthdata MCP server with a transport."""
-
+    logging.basicConfig(level=logging.INFO)
     logger.info("Starting Earthdata MCP Server with transport: %s", transport)
-    logger.info("Available tools: %s", list(mcp._tool_manager._tools.keys()))
+    host = earthdata_host()
 
     if transport == "stdio":
-        mcp.run(transport="stdio")
-    elif transport == "streamable-http":
-        uvicorn.run(mcp.streamable_http_app(), host="0.0.0.0", port=port)  # noqa: S104
-    else:
-        raise Exception("Transport should be `stdio` or `streamable-http`.")
+        built = host.build()
+        logger.info("Available tools: %s", list(built.tool_names))
+        built.server.run(transport="stdio")
+        return
 
+    import uvicorn
 
-###############################################################################
-# Main.
+    uvicorn.run(http_app(host), host=bind, port=port)
 
 
 if __name__ == "__main__":
