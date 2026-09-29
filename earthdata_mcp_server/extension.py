@@ -267,9 +267,9 @@ def download_granules(
 
 
 async def _off_the_loop(function: Callable[..., Any], /, **arguments: Any) -> Any:
-    # earthaccess is synchronous and talks to NASA over the network: run on the
-    # event loop, one slow search would stall every other session this server
-    # holds.
+    # earthaccess is synchronous and talks to NASA over the network. Called on
+    # the event loop, one slow search would stall every other session this server
+    # holds, so it runs in a worker thread.
     return await anyio.to_thread.run_sync(functools.partial(function, **arguments))
 
 
@@ -290,7 +290,7 @@ def download_analyze_global_sea_level() -> str:
 def sealevel_rise_dataset(start_year: int, end_year: int) -> str:
     """Ask for datasets about sea level rise worldwide between two years."""
     return (
-        "I'm interested in datasets about sealevel rise worldwide "
+        "I'm interested in datasets about sea level rise worldwide "
         f"from {start_year} to {end_year}. Can you list relevant datasets?"
     )
 

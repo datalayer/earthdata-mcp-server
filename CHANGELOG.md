@@ -8,7 +8,7 @@
 
 ## 0.5.0
 
-- The server is now a [`reactor_mcp_server`](https://github.com/datalayer/reactor/tree/main/apps/mcp-server)
+- The server is now a [`reactor_mcp_server`](https://pypi.org/project/reactor-mcp-server/)
   extension. Installed beside any host of that foundation, it is discovered on the
   `reactor.mcp.extensions` entry-point group and served as the opt-in `earthdata`
   toolset (`/mcp?earthdata`). `earthdata-mcp-server start` still serves it on its

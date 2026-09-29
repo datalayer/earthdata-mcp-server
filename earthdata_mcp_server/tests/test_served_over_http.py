@@ -2,7 +2,7 @@
 #
 # BSD 3-Clause License
 
-"""The ``earthdata-mcp-server`` HTTP app: the toolset on at ``/mcp``."""
+"""The ``earthdata-mcp-server`` HTTP app: the toolset served at ``/mcp``."""
 
 from __future__ import annotations
 

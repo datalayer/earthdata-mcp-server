@@ -16,7 +16,7 @@
 
 Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server implementation that provides tools to interact with [NASA Earth Data](https://www.earthdata.nasa.gov/).
 
-It is built as a [`reactor_mcp_server`](https://github.com/datalayer/reactor/tree/main/apps/mcp-server) extension, so it runs two ways:
+It is built as a [`reactor_mcp_server`](https://pypi.org/project/reactor-mcp-server/) extension, so it runs two ways:
 
 - **On its own**: `earthdata-mcp-server start` serves the Earthdata tools and nothing else, over stdio or streamable HTTP.
 - **As a toolset**: installed beside any `reactor_mcp_server` host, it is discovered and served as the opt-in `earthdata` toolset to a client that asks for it: `/mcp?earthdata`. The [Datalayer MCP Server](https://datalayer.ai/docs/mcp/toolsets) serves it this way, next to notebooks and sandboxes.
@@ -128,8 +128,9 @@ app = create_mcp_app(build_host([EarthdataExtension()]), path="/mcp")
 
 ## Tools
 
-The `earthdata` toolset offers 3 tools. The two searches are read-only and need no
-credentials; the download needs a NASA Earthdata Login.
+The `earthdata` toolset offers 3 tools. None of them needs credentials, except
+`download_earth_data_granules` in `mode="download"`, which needs a NASA Earthdata Login.
+Its default `manifest` mode and its `script` mode work anonymously.
 
 ### `search_earth_datasets`
 
@@ -154,7 +155,7 @@ credentials; the download needs a NASA Earthdata Login.
 ### `download_earth_data_granules`
 
 - Search and optionally download granules with explicit modes.
-- **Authentication**: Requires NASA Earthdata Login credentials (see [authentication guide](./docs/authentication.md))
+- **Authentication**: Only `mode="download"` needs NASA Earthdata Login credentials (see [authentication guide](./docs/authentication.md)); `manifest` and `script` modes work anonymously.
 - Input:
   - folder_name (str): Local folder name to save the data.
   - short_name (str): Short name of the Earth dataset to download.

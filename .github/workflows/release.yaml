@@ -87,7 +87,10 @@ jobs:
   release:
     name: GitHub release
     needs: [build, pypi]
-    if: always() && needs.build.result == 'success' && needs.pypi.result != 'failure'
+    # Only after a publish that succeeded, or one skipped because the version is
+    # already on PyPI — never after one that failed or was cancelled, or the
+    # release would link to a version that does not exist.
+    if: always() && needs.build.result == 'success' && (needs.pypi.result == 'success' || needs.pypi.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: write
