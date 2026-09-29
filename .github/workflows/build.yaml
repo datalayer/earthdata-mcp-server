@@ -1,0 +1,88 @@
+# Copyright (c) 2023-2026 Datalayer, Inc.
+# Distributed under the terms of the BSD 3-Clause License.
+
+# Lint, type-check and test on every push and pull request, then build the
+# distributions a release would publish and check them — so a tag never finds
+# out first that the package does not build.
+
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+  pull_request:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[lint,typing,test]"
+      - name: Ruff
+        run: ruff check earthdata_mcp_server
+      - name: MyPy
+        run: mypy earthdata_mcp_server
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+      - name: Test
+        run: pytest -q
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build the distributions
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip build twine
+          python -m build --sdist --wheel --outdir dist .
+          twine check --strict dist/*
+      - name: Install the wheel and find the extension
+        run: |
+          set -euo pipefail
+          python -m pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          python -c "
+          from reactor_mcp_server import build_host, load_extensions, parse_selection
+          host = build_host(load_extensions(['earthdata']))
+          tools = host.build(parse_selection('earthdata')).tool_names
+          assert 'search_earth_datasets' in tools, tools
+          print('earthdata extension discovered:', tools)
+          "
+          earthdata-mcp-server start --help
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*

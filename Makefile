@@ -6,9 +6,10 @@ SHELL=/bin/bash
 
 .DEFAULT_GOAL := default
 
-.PHONY: clean build
+.PHONY: clean build test lint release
 
-VERSION = "0.0.4"
+# The package version, read from the one place it is written.
+VERSION = $(shell python -c "import re;print(re.search(r'__version__ = \"(.+)\"', open('earthdata_mcp_server/__version__.py').read())[1])")
 
 default: all ## Default target is all.
 
@@ -21,7 +22,14 @@ install:
 	pip install .
 
 dev:
-	pip install ".[test,lint,typing]"
+	pip install -e ".[test,lint,typing]"
+
+test: ## run the tests
+	pytest -q
+
+lint: ## ruff and mypy, as CI runs them
+	ruff check earthdata_mcp_server
+	mypy earthdata_mcp_server
 
 build:
 	pip install build
@@ -39,7 +47,7 @@ push-docker:
 	docker push datalayer/earthdata-mcp-server:latest
 
 pull-docker:
-	docker push datalayer/earthdata-mcp-server:latest
+	docker pull datalayer/earthdata-mcp-server:latest
 
 claude-linux:
 	NIXPKGS_ALLOW_UNFREE=1 nix run github:k3d3/claude-desktop-linux-flake \
@@ -66,10 +74,8 @@ start: ## start the earthdata mcp server with streamable-http transport
 	  --transport streamable-http \
 	  --port 4040
 
-publish-pypi: # publish the pypi package
-	git clean -fdx && \
-		python -m build
-	@exec echo
-	@exec echo twine upload ./dist/*-py3-none-any.whl
-	@exec echo
-	@exec echo https://pypi.org/project/earthdata-mcp-server/#history
+release: ## tag the version in __version__.py; the Release workflow publishes it
+	@test -z "$$(git status --porcelain)" || (echo "The working tree is not clean" && exit 1)
+	git tag -a v$(VERSION) -m "Release $(VERSION)"
+	@echo
+	@echo "Push the tag to publish: git push origin v$(VERSION)"

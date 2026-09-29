@@ -1,0 +1,108 @@
+# Copyright (c) 2023-2026 Datalayer, Inc.
+# Distributed under the terms of the BSD 3-Clause License.
+
+# Publishes the release a tag names to PyPI, with no stored token: PyPI
+# trusts this workflow file (OIDC trusted publishing, through the `pypi`
+# environment). The tag must name the version in earthdata_mcp_server/__version__.py; a
+# version already published is skipped. See RELEASE.md.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.plan.outputs.python }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check the tag names the version the package carries
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(python -c "import re;print(re.search(r'__version__\s*=\s*[\"\']([^\"\']+)', open('earthdata_mcp_server/__version__.py').read())[1])")"
+          echo "tag=$tag version=$version"
+          test "$tag" = "$version"
+
+      - name: Find whether it is published yet
+        id: plan
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          status="$(curl -sL -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/earthdata-mcp-server/$version/json")"
+          if [ "$status" = "200" ]; then
+            echo "PyPI: earthdata-mcp-server $version is already published, skipping"
+            echo "python=" >> "$GITHUB_OUTPUT"
+          else
+            echo "PyPI: earthdata-mcp-server $version will be published"
+            echo "python=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        if: steps.plan.outputs.python != ''
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip build
+          python -m build --sdist --wheel --outdir dist .
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        if: steps.plan.outputs.python != ''
+        with:
+          name: python
+          path: dist/*
+
+  pypi:
+    needs: build
+    if: needs.build.outputs.python != ''
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+
+  release:
+    name: GitHub release
+    needs: [build, pypi]
+    # Only after a publish that succeeded, or one skipped because the version is
+    # already on PyPI — never after one that failed or was cancelled, or the
+    # release would link to a version that does not exist.
+    if: always() && needs.build.result == 'success' && (needs.pypi.result == 'success' || needs.pypi.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create the release with generated notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && exit 0
+          gh release create "$GITHUB_REF_NAME" --title "Release $version" --generate-notes \
+            --notes "- [PyPI earthdata-mcp-server](https://pypi.org/project/earthdata-mcp-server/$version/)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -12,14 +12,16 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/earthdata-mcp-server)](https://pypi.org/project/earthdata-mcp-server)
 [![smithery badge](https://smithery.ai/badge/@datalayer/earthdata-mcp-server)](https://smithery.ai/server/@datalayer/earthdata-mcp-server)
-[![Unit Tests](https://github.com/datalayer/earthdata-mcp-server/actions/workflows/tests.yml/badge.svg)](https://github.com/datalayer/earthdata-mcp-server/actions/workflows/tests.yml)
-[![Lint and Type Check](https://github.com/datalayer/earthdata-mcp-server/actions/workflows/lint.yml/badge.svg)](https://github.com/datalayer/earthdata-mcp-server/actions/workflows/lint.yml)
+[![Build](https://github.com/datalayer/earthdata-mcp-server/actions/workflows/build.yaml/badge.svg)](https://github.com/datalayer/earthdata-mcp-server/actions/workflows/build.yaml)
 
 Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server implementation that provides tools to interact with [NASA Earth Data](https://www.earthdata.nasa.gov/).
 
-This server is intentionally Earthdata-only.
+It is built as a [`reactor_mcp_server`](https://pypi.org/project/reactor-mcp-server/) extension, so it runs two ways:
 
-If you need notebook/runtime tools, compose this server with `jupyter-mcp-server` using [mcp-compose](https://github.com/datalayer/mcp-compose).
+- **On its own**: `earthdata-mcp-server start` serves the Earthdata tools and nothing else, over stdio or streamable HTTP.
+- **As a toolset**: installed beside any `reactor_mcp_server` host, it is discovered and served as the opt-in `earthdata` toolset to a client that asks for it: `/mcp?earthdata`. The [Datalayer MCP Server](https://datalayer.ai/docs/mcp/toolsets) serves it this way, next to notebooks and sandboxes.
+
+The server is intentionally Earthdata-only. For notebook and runtime tools, serve it beside them on one host, or compose it with `jupyter-mcp-server` using [mcp-compose](https://github.com/datalayer/mcp-compose).
 
 ## Key Features
 
@@ -42,7 +44,38 @@ If you need notebook/runtime tools, compose this server with `jupyter-mcp-server
 
 ```bash
 pip install earthdata-mcp-server
+
+# stdio, for a client that launches the server
+earthdata-mcp-server start
+
+# streamable HTTP, at http://localhost:4040/mcp
+earthdata-mcp-server start --transport streamable-http --port 4040
 ```
+
+| Option | Environment | Default |
+| --- | --- | --- |
+| `--transport` | `TRANSPORT` | `stdio` (or `streamable-http`) |
+| `--host` | `HOST` | `0.0.0.0` |
+| `--port` | `PORT` | `4040` |
+
+### As a toolset on a reactor MCP host
+
+```bash
+pip install earthdata-mcp-server "reactor_mcp_server[server]"
+reactor-mcp-server --port 4040
+```
+
+A client connecting to `http://localhost:4040/mcp?earthdata` gets the Earthdata tools
+beside whatever else is installed; `/toolsets` lists what the host offers. In code:
+
+```python
+from reactor_mcp_server import build_host, create_mcp_app
+from earthdata_mcp_server import EarthdataExtension
+
+app = create_mcp_app(build_host([EarthdataExtension()]), path="/mcp")
+```
+
+`EarthdataExtension(default=True)` serves the toolset to a client that names none.
 
 ### Docker with Claude Desktop
 
@@ -55,6 +88,8 @@ pip install earthdata-mcp-server
         "run",
         "-i",
         "--rm",
+        "-e", "EARTHDATA_USERNAME",
+        "-e", "EARTHDATA_PASSWORD",
         "datalayer/earthdata-mcp-server:latest"
       ],
       "env": {
@@ -78,6 +113,8 @@ pip install earthdata-mcp-server
         "-i",
         "--rm",
         "--network=host",
+        "-e", "EARTHDATA_USERNAME",
+        "-e", "EARTHDATA_PASSWORD",
         "datalayer/earthdata-mcp-server:latest"
       ],
       "env": {
@@ -91,7 +128,9 @@ pip install earthdata-mcp-server
 
 ## Tools
 
-The server offers 3 Earthdata tools.
+The `earthdata` toolset offers 3 tools. None of them needs credentials, except
+`download_earth_data_granules` in `mode="download"`, which needs a NASA Earthdata Login.
+Its default `manifest` mode and its `script` mode work anonymously.
 
 ### `search_earth_datasets`
 
@@ -116,7 +155,7 @@ The server offers 3 Earthdata tools.
 ### `download_earth_data_granules`
 
 - Search and optionally download granules with explicit modes.
-- **Authentication**: Requires NASA Earthdata Login credentials (see [authentication guide](./docs/authentication.md))
+- **Authentication**: Only `mode="download"` needs NASA Earthdata Login credentials (see [authentication guide](./docs/authentication.md)); `manifest` and `script` modes work anonymously.
 - Input:
   - folder_name (str): Local folder name to save the data.
   - short_name (str): Short name of the Earth dataset to download.
@@ -169,6 +208,16 @@ For a full composition example with `mcp-compose`, see [download workflow docs](
 3. `ask_datasets_format`
     - To ask about the format of the datasets.
     - Returns: Prompt correctly formatted.
+
+## Development
+
+```bash
+make dev    # editable install with the test, lint and typing extras
+make test
+make lint
+```
+
+Releases are cut by pushing a tag; see [RELEASE.md](./RELEASE.md).
 
 ## Building
 

@@ -8,5 +8,5 @@ startCommand:
   commandFunction:
     # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
     |-
-    (config) => ({command: 'python', args: ['-m', 'earthdata_mcp_server.server']})
+    (config) => ({command: 'earthdata-mcp-server', args: ['start']})
   exampleConfig: {}
