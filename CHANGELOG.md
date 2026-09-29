@@ -17,6 +17,8 @@
 - Every tool carries its annotations: the searches are read-only, and all three are
   idempotent and open-world.
 - The tools no longer block the event loop: earthaccess runs in a worker thread.
+- `search_earth_datasets` works with earthaccess 0.19, which turned `abstract`, `data_type` and
+  `landing_page` into properties; it failed on a fresh install before.
 - `start` takes `--host`.
 - Releases are cut by pushing a `vX.Y.Z` tag, published to PyPI through trusted
   publishing. See RELEASE.md.

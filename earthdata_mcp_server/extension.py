@@ -150,6 +150,12 @@ SCRIPT_HINT = (
 )
 
 
+def _read(collection: Any, name: str) -> Any:
+    # earthaccess 0.19 made these properties; earlier releases have methods.
+    value = getattr(collection, name)
+    return value() if callable(value) else value
+
+
 def search_datasets(
     search_keywords: str,
     count: int,
@@ -172,10 +178,10 @@ def search_datasets(
         {
             "Title": dataset.get_umm("EntryTitle"),
             "ShortName": dataset.get_umm("ShortName"),
-            "Abstract": dataset.abstract(),
-            "Data Type": dataset.data_type(),
+            "Abstract": _read(dataset, "abstract"),
+            "Data Type": _read(dataset, "data_type"),
             "DOI": dataset.get_umm("DOI"),
-            "LandingPage": dataset.landing_page(),
+            "LandingPage": _read(dataset, "landing_page"),
             "DatasetViz": dataset._filter_related_links("GET RELATED VISUALIZATION"),
             "DatasetURL": dataset._filter_related_links("GET DATA"),
         }

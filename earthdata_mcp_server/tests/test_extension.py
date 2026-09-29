@@ -174,3 +174,37 @@ def test_search_passes_filters_as_tuples(monkeypatch: pytest.MonkeyPatch) -> Non
     assert found == []
     assert seen["temporal"] == ("2020-01-01", "2020-12-31")
     assert seen["bounding_box"] == (0, 0, 1, 1)
+
+
+class _Collection(dict):
+    """The shape of an earthaccess 0.19 collection: properties, not methods."""
+
+    abstract = property(lambda self: "An abstract")
+    data_type = property(lambda self: "SCIENCE_QUALITY")
+    landing_page = property(lambda self: "https://example.com")
+
+    def get_umm(self, key: str) -> str:
+        return f"umm:{key}"
+
+    def _filter_related_links(self, kind: str) -> list[str]:
+        return [kind]
+
+
+class _OlderCollection(_Collection):
+    """Before 0.19, the same values came from methods."""
+
+    abstract = lambda self: "An abstract"  # noqa: E731
+    data_type = lambda self: "SCIENCE_QUALITY"  # noqa: E731
+    landing_page = lambda self: "https://example.com"  # noqa: E731
+
+
+@pytest.mark.parametrize("collection", [_Collection, _OlderCollection])
+def test_datasets_read_either_earthaccess_shape(
+    monkeypatch: pytest.MonkeyPatch, collection: type
+) -> None:
+    monkeypatch.setattr(earthaccess, "search_datasets", lambda **_: [collection()])
+    [found] = asyncio.run(EarthdataExtension().search_earth_datasets("sea level", 1))
+    assert found["Abstract"] == "An abstract"
+    assert found["Data Type"] == "SCIENCE_QUALITY"
+    assert found["LandingPage"] == "https://example.com"
+    assert found["ShortName"] == "umm:ShortName"
