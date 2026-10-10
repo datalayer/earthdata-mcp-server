@@ -11,7 +11,6 @@
 # 🪐 ✨ Earthdata MCP Server
 
 [![PyPI - Version](https://img.shields.io/pypi/v/earthdata-mcp-server)](https://pypi.org/project/earthdata-mcp-server)
-[![smithery badge](https://smithery.ai/badge/@datalayer/earthdata-mcp-server)](https://smithery.ai/server/@datalayer/earthdata-mcp-server)
 [![Build](https://github.com/datalayer/earthdata-mcp-server/actions/workflows/build.yaml/badge.svg)](https://github.com/datalayer/earthdata-mcp-server/actions/workflows/build.yaml)
 
 Earthdata MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server implementation that provides tools to interact with [NASA Earth Data](https://www.earthdata.nasa.gov/).

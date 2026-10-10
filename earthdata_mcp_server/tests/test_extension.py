@@ -53,6 +53,28 @@ def test_every_tool_says_how_it_behaves() -> None:
         assert annotations.read_only_hint is (spec.name != "download_earth_data_granules")
 
 
+def test_download_tool_documents_every_parameter() -> None:
+    host = build_host([EarthdataExtension(default=True)], name="tests")
+    [spec] = [
+        tool for tool in host.build().tools if tool.name == "download_earth_data_granules"
+    ]
+
+    for parameter in (
+        "folder_name",
+        "short_name",
+        "count",
+        "temporal",
+        "bounding_box",
+        "mode",
+        "max_manifest_items",
+    ):
+        assert f"{parameter}:" in spec.documentation
+
+    assert "In download mode" in spec.documentation
+    assert "where the generated script runs" in spec.documentation
+    assert "ignored in download and script modes" in spec.documentation
+
+
 def test_the_prompts_are_served_with_the_toolset() -> None:
     host = build_host([EarthdataExtension(default=True)], name="tests")
     prompts = asyncio.run(host.build().server.list_prompts())
@@ -88,7 +110,13 @@ def test_download_mode_validation_manifest_limit() -> None:
 
 
 def test_download_script_mode() -> None:
-    result = download(folder_name="downloads/test", short_name="TEST", count=2, mode="script")
+    result = download(
+        folder_name="downloads/test",
+        short_name="TEST",
+        count=2,
+        mode="script",
+        max_manifest_items=0,
+    )
     assert result["mode"] == "script"
     assert "earthaccess.search_data" in result["script"]
     assert "downloads/test" in result["script"]
@@ -126,7 +154,13 @@ def test_download_mode_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) 
     monkeypatch.setattr(earthaccess, "download", lambda *_: fake_files)
 
     folder_name = "unit-test-downloads"
-    result = download(folder_name=folder_name, short_name="TEST", count=2, mode="download")
+    result = download(
+        folder_name=folder_name,
+        short_name="TEST",
+        count=2,
+        mode="download",
+        max_manifest_items=0,
+    )
     assert result["mode"] == "download"
     assert result["downloaded_count"] == 2
     assert result["output_dir"] == str((tmp_path / "earthdata_downloads" / folder_name).resolve())
@@ -155,6 +189,36 @@ def test_download_mode_auth_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         download(folder_name="downloads/test", short_name="TEST", count=1, mode="download")
 
 
+def test_download_wraps_search_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise_search(**_: object) -> None:
+        raise TimeoutError("raw CMR timeout")
+
+    monkeypatch.setattr(earthaccess, "search_data", _raise_search)
+
+    with pytest.raises(RuntimeError, match=r"granule search failed.*TEST") as error:
+        download(folder_name="downloads/test", short_name="TEST", count=1)
+
+    assert isinstance(error.value.__cause__, TimeoutError)
+    assert "raw CMR timeout" not in str(error.value)
+
+
+def test_download_wraps_file_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(earthdata, "BASE_DOWNLOAD_DIR", tmp_path / "earthdata_downloads")
+    monkeypatch.setattr(earthaccess, "search_data", lambda **_: [{"id": "g1"}])
+    monkeypatch.setattr(earthaccess, "login", lambda **_: object())
+
+    def _raise_download(*_: object) -> None:
+        raise ConnectionError("raw socket error")
+
+    monkeypatch.setattr(earthaccess, "download", _raise_download)
+
+    with pytest.raises(RuntimeError, match="file download failed") as error:
+        download(folder_name="downloads/test", short_name="TEST", count=1, mode="download")
+
+    assert isinstance(error.value.__cause__, ConnectionError)
+    assert "raw socket error" not in str(error.value)
+
+
 def test_search_passes_filters_as_tuples(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: dict[str, Any] = {}
 
@@ -174,6 +238,32 @@ def test_search_passes_filters_as_tuples(monkeypatch: pytest.MonkeyPatch) -> Non
     assert found == []
     assert seen["temporal"] == ("2020-01-01", "2020-12-31")
     assert seen["bounding_box"] == (0, 0, 1, 1)
+
+
+def test_granule_search_wraps_earthaccess_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise_search(**_: object) -> None:
+        raise ValueError("raw invalid query")
+
+    monkeypatch.setattr(earthaccess, "search_data", _raise_search)
+
+    with pytest.raises(RuntimeError, match="Use search_earth_datasets") as error:
+        asyncio.run(EarthdataExtension().search_earth_datagranules("INVALID", 1))
+
+    assert isinstance(error.value.__cause__, ValueError)
+    assert "raw invalid query" not in str(error.value)
+
+
+def test_dataset_search_wraps_earthaccess_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise_search(**_: object) -> None:
+        raise TimeoutError("raw CMR timeout")
+
+    monkeypatch.setattr(earthaccess, "search_datasets", _raise_search)
+
+    with pytest.raises(RuntimeError, match="dataset search failed") as error:
+        asyncio.run(EarthdataExtension().search_earth_datasets("sea level", 1))
+
+    assert isinstance(error.value.__cause__, TimeoutError)
+    assert "raw CMR timeout" not in str(error.value)
 
 
 class _Collection(dict):
