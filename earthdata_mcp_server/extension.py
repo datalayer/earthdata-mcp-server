@@ -173,7 +173,13 @@ def search_datasets(
     if bounding_box and len(bounding_box) == 4:
         search_params["bounding_box"] = tuple(bounding_box)
 
-    datasets = earthaccess.search_datasets(**search_params)
+    try:
+        datasets = earthaccess.search_datasets(**search_params)
+    except Exception as exc:
+        raise RuntimeError(
+            "Earthdata dataset search failed. Check search_keywords, temporal, and "
+            "bounding_box, then retry; NASA Earthdata may be temporarily unavailable."
+        ) from exc
     return [
         {
             "Title": dataset.get_umm("EntryTitle"),
@@ -197,7 +203,14 @@ def search_granules(
 ) -> list[Any]:
     """Search NASA Earthdata for a dataset's granules, blocking."""
     search_params = _build_search_params(short_name, count, temporal, bounding_box)
-    return list(earthaccess.search_data(**search_params))
+    try:
+        return list(earthaccess.search_data(**search_params))
+    except Exception as exc:
+        raise RuntimeError(
+            f"Earthdata granule search failed for short_name '{short_name}'. Use "
+            "search_earth_datasets to find valid short names, check temporal and "
+            "bounding_box, then retry; NASA Earthdata may be temporarily unavailable."
+        ) from exc
 
 
 def download_granules(
@@ -227,7 +240,14 @@ def download_granules(
             "hint": SCRIPT_HINT,
         }
 
-    results = earthaccess.search_data(**search_params)
+    try:
+        results = earthaccess.search_data(**search_params)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Earthdata granule search failed for short_name '{short_name}'. Use "
+            "search_earth_datasets to find valid short names, check temporal and "
+            "bounding_box, then retry; NASA Earthdata may be temporarily unavailable."
+        ) from exc
     total_found = len(results)
 
     if mode == "manifest":
@@ -255,7 +275,13 @@ def download_granules(
             "Earthdata authentication failed. Set EARTHDATA_USERNAME and EARTHDATA_PASSWORD."
         ) from exc
 
-    files = earthaccess.download(results, str(output_dir))
+    try:
+        files = earthaccess.download(results, str(output_dir))
+    except Exception as exc:
+        raise RuntimeError(
+            "Earthdata file download failed. Check network access to NASA Earthdata "
+            "and retry."
+        ) from exc
     return {
         "mode": mode,
         "search_params": search_params,
@@ -427,6 +453,17 @@ class EarthdataExtension(McpExtension):
           download, to run in a notebook or a code sandbox.
 
         Start with manifest to check what a query matches before downloading.
+
+        Args:
+            folder_name: Download path relative to this server's safe output directory.
+            short_name: Short name of the dataset.
+            count: Number of data granules to return.
+            temporal: (Optional) Temporal range in the format (date_from, date_to).
+            bounding_box: (Optional) Bounding box in the format
+                (lower_left_lon, lower_left_lat, upper_right_lon, upper_right_lat).
+            mode: Operation to perform: manifest, download, or script.
+            max_manifest_items: Maximum number of granules returned in manifest mode;
+                ignored in download and script modes.
         """
         return await _off_the_loop(
             download_granules,
