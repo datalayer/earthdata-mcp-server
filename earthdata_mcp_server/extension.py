@@ -225,7 +225,7 @@ def download_granules(
     """Search, then describe, download or script the granules found, blocking."""
     if mode not in DOWNLOAD_MODES:
         raise ValueError(f"Invalid mode '{mode}'. Use one of: {sorted(DOWNLOAD_MODES)}.")
-    if max_manifest_items < 1:
+    if mode == "manifest" and max_manifest_items < 1:
         raise ValueError("max_manifest_items must be >= 1.")
 
     logger.info("Preparing Earthdata granule operation for '%s' in mode '%s'", short_name, mode)
@@ -455,7 +455,10 @@ class EarthdataExtension(McpExtension):
         Start with manifest to check what a query matches before downloading.
 
         Args:
-            folder_name: Download path relative to this server's safe output directory.
+            folder_name: In download mode, a path relative to this server's safe output
+                directory. In script mode, the path is embedded unchanged and resolves
+                where the generated script runs. In manifest mode, it is reported as
+                the intended download folder.
             short_name: Short name of the dataset.
             count: Number of data granules to return.
             temporal: (Optional) Temporal range in the format (date_from, date_to).
